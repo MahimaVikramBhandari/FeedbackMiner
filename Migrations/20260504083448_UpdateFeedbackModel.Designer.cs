@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FeedbackMiner.Migrations
 {
     [DbContext(typeof(FeedbackDbContext))]
-    partial class FeedbackDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260504083448_UpdateFeedbackModel")]
+    partial class UpdateFeedbackModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -221,12 +224,15 @@ namespace FeedbackMiner.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("EmbeddingJson")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Language")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("MetadataJson")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ProcessedText")
@@ -241,6 +247,7 @@ namespace FeedbackMiner.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("SentimentLabel")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<double?>("SentimentScore")
@@ -264,6 +271,7 @@ namespace FeedbackMiner.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("UrgencyLevel")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<double?>("UrgencyScore")
