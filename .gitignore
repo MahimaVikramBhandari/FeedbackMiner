@@ -11,6 +11,10 @@
 *.sln.docstates
 .env*
 
+# Reference and documentation files (local use only)
+PROJECT_REQUIREMENTS.md
+IMPLEMENTATION_GUIDE.md
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
