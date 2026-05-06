@@ -11,50 +11,6 @@ namespace FeedbackMiner.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "SentimentLabel",
-                table: "FeedbackItems",
-                type: "nvarchar(max)",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<double>(
-                name: "SentimentScore",
-                table: "FeedbackItems",
-                type: "float",
-                nullable: true);
-
-            migrationBuilder.AddColumn<double>(
-                name: "SimilarityScore",
-                table: "FeedbackItems",
-                type: "float",
-                nullable: true);
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "ThemeClusterId",
-                table: "FeedbackItems",
-                type: "uniqueidentifier",
-                nullable: true);
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "ThemeId",
-                table: "FeedbackItems",
-                type: "uniqueidentifier",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "UrgencyLevel",
-                table: "FeedbackItems",
-                type: "nvarchar(max)",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<double>(
-                name: "UrgencyScore",
-                table: "FeedbackItems",
-                type: "float",
-                nullable: true);
-
             migrationBuilder.CreateTable(
                 name: "ProcessingRuns",
                 columns: table => new
@@ -410,34 +366,6 @@ namespace FeedbackMiner.Migrations
 
             migrationBuilder.DropIndex(
                 name: "IX_FeedbackItems_ThemeId",
-                table: "FeedbackItems");
-
-            migrationBuilder.DropColumn(
-                name: "SentimentLabel",
-                table: "FeedbackItems");
-
-            migrationBuilder.DropColumn(
-                name: "SentimentScore",
-                table: "FeedbackItems");
-
-            migrationBuilder.DropColumn(
-                name: "SimilarityScore",
-                table: "FeedbackItems");
-
-            migrationBuilder.DropColumn(
-                name: "ThemeClusterId",
-                table: "FeedbackItems");
-
-            migrationBuilder.DropColumn(
-                name: "ThemeId",
-                table: "FeedbackItems");
-
-            migrationBuilder.DropColumn(
-                name: "UrgencyLevel",
-                table: "FeedbackItems");
-
-            migrationBuilder.DropColumn(
-                name: "UrgencyScore",
                 table: "FeedbackItems");
         }
     }

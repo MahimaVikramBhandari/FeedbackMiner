@@ -1,4 +1,6 @@
-﻿public class FeedbackRepository : IFeedbackRepository
+using Microsoft.EntityFrameworkCore;
+
+public class FeedbackRepository : IFeedbackRepository
 {
     private readonly FeedbackDbContext _context;
 
@@ -10,6 +12,15 @@
     public async Task AddAsync(FeedbackItem item)
     {
         await _context.FeedbackItems.AddAsync(item);
+    }
+
+    public async Task<List<FeedbackItem>> GetRecentAsync(int take = 100)
+    {
+        return await _context.FeedbackItems
+            .AsNoTracking()
+            .OrderByDescending(item => item.CreatedAt)
+            .Take(take)
+            .ToListAsync();
     }
 
     public async Task SaveChangesAsync()

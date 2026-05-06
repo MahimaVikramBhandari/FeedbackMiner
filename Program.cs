@@ -7,6 +7,20 @@ var builder = WebApplication.CreateBuilder(args);
 // Controllers
 builder.Services.AddControllers();
 
+// Frontend integration
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+        policy
+            .WithOrigins(
+                "http://localhost:4200",
+                "https://localhost:4200",
+                "http://localhost:4300",
+                "https://localhost:4300")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
+
 // SQL Server
 builder.Services.AddDbContext<FeedbackDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -44,12 +58,13 @@ builder.Services.AddScoped<TextProcessingPipeline>(sp =>
     return new TextProcessingPipeline(new List<ITextProcessor>
     {
         new TextCleaner(),
-        new PiiRedactor(),
-        new LanguageDetector(sp.GetRequiredService<OpenAIService>())
+        new PiiRedactor()
     });
 });
 
 var app = builder.Build();
+
+app.UseCors("Frontend");
 
 app.MapControllers();
 
@@ -61,8 +76,15 @@ if (app.Environment.IsDevelopment())
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<FeedbackDbContext>();
-    db.Database.Migrate();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<FeedbackDbContext>();
+        db.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"Database migration failed during startup. The API will continue running, but database-backed endpoints may fail until the connection string or SQL Server authentication is fixed. Error: {ex.Message}");
+    }
 }
 
 app.Run();

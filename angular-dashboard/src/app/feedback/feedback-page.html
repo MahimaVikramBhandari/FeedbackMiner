@@ -1,0 +1,142 @@
+<div class="page-shell">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Ingestion</p>
+      <h1>Feedback</h1>
+    </div>
+
+    <button mat-stroked-button type="button" (click)="loadFeedback()">
+      <mat-icon>refresh</mat-icon>
+      Refresh
+    </button>
+  </div>
+
+  <!-- ERROR STATE -->
+  @if (error) {
+    <mat-card class="error-card">
+      <mat-card-content>
+        {{ error }}
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <div class="feedback-layout">
+
+    <!-- LEFT: FORM -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Add Feedback</mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form [formGroup]="form" (ngSubmit)="submit()" class="feedback-form">
+
+          <mat-form-field appearance="outline">
+            <mat-label>Source</mat-label>
+            <mat-select formControlName="source">
+              <mat-option value="manual">Manual</mat-option>
+              <mat-option value="support">Support</mat-option>
+              <mat-option value="survey">Survey</mat-option>
+              <mat-option value="review">Review</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Feedback text</mat-label>
+            <textarea matInput rows="6" formControlName="text"></textarea>
+          </mat-form-field>
+
+          <div class="form-grid">
+
+            <mat-form-field appearance="outline">
+              <mat-label>Rating</mat-label>
+              <input matInput type="number" min="1" max="5" formControlName="rating">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Product area</mat-label>
+              <input matInput formControlName="productArea">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Category</mat-label>
+              <input matInput formControlName="category">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Customer segment</mat-label>
+              <input matInput formControlName="customerSegment">
+            </mat-form-field>
+
+          </div>
+
+          <button mat-flat-button color="primary" type="submit" [disabled]="saving">
+
+            @if (saving) {
+              <mat-spinner diameter="18"></mat-spinner>
+            } @else {
+              <mat-icon>add</mat-icon>
+            }
+
+            Save Feedback
+          </button>
+
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- RIGHT: LIST -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Latest Items</mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+
+        <!-- LOADING -->
+        @if (loading) {
+          <div class="state-panel">
+            <mat-spinner diameter="36"></mat-spinner>
+          </div>
+        }
+
+        <!-- DATA LIST -->
+        @else if (feedbackItems.length > 0) {
+          <div class="feedback-list">
+
+            @for (item of feedbackItems; track item.id) {
+              <article class="feedback-item">
+
+                <div class="feedback-top">
+                  <strong>{{ item.source }}</strong>
+                  <span>{{ item.createdAt | date:'short' }}</span>
+                </div>
+
+                <p class="feedback-text">
+                  {{ item.text }}
+                </p>
+
+                <footer class="feedback-footer">
+                  <span>{{ item.productArea || 'N/A' }}</span>
+                  <span>{{ item.category || 'N/A' }}</span>
+                  <span>{{ item.sentimentLabel || 'Unscanned' }}</span>
+                </footer>
+
+              </article>
+            }
+
+          </div>
+        }
+
+        <!-- EMPTY STATE -->
+        @else {
+          <p class="empty-text">
+            No feedback yet.
+          </p>
+        }
+
+      </mat-card-content>
+    </mat-card>
+
+  </div>
+</div>

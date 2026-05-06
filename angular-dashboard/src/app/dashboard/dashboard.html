@@ -1,0 +1,169 @@
+<div class="page-shell">
+
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Overview</p>
+      <h1>Dashboard</h1>
+    </div>
+
+    <button mat-stroked-button type="button" (click)="loadDashboardData()">
+      <mat-icon>refresh</mat-icon>
+      Refresh
+    </button>
+  </div>
+
+  <!-- LOADING -->
+  @if (loading) {
+    <div class="state-panel">
+      <mat-spinner diameter="42"></mat-spinner>
+      <p>Loading dashboard data...</p>
+    </div>
+  }
+
+  <!-- ERROR -->
+  @else if (error) {
+    <mat-card class="state-card error-card">
+      <mat-card-content>
+        <p>{{ error }}</p>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          (click)="loadDashboardData()">
+          Retry
+        </button>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <!-- MAIN CONTENT -->
+  @else {
+
+    <!-- METRICS -->
+    <div class="metrics-grid">
+
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <span>Total Feedback</span>
+          <strong>{{ totalFeedback }}</strong>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <span>Themes</span>
+          <strong>{{ themes?.length || 0 }}</strong>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <span>Avg Sentiment</span>
+          <strong>{{ ((averageSentiment || 0) * 100) | number:'1.0-0' }}%</strong>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card warning">
+        <mat-card-content>
+          <span>High Priority</span>
+          <strong>{{ highUrgencyCount }}</strong>
+        </mat-card-content>
+      </mat-card>
+
+    </div>
+
+    <!-- GRID -->
+    <div class="content-grid">
+
+      <!-- SENTIMENT -->
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Sentiment</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content class="sentiment-list">
+          <div><span class="dot positive"></span>Positive <strong>{{ positiveFeedback }}</strong></div>
+          <div><span class="dot neutral"></span>Neutral <strong>{{ neutralFeedback }}</strong></div>
+          <div><span class="dot negative"></span>Negative <strong>{{ negativeFeedback }}</strong></div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- THEMES -->
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Top Themes</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+
+      @if (themes.length > 0) {
+            <div class="theme-list">
+
+              @for (theme of themes.slice(0, 5); track theme.id) {
+                <div class="theme-row">
+                  <div>
+                    <strong>{{ theme.label }}</strong>
+                    <span>{{ theme.feedbackCount }} feedback items</span>
+                  </div>
+                  <b>{{ theme.impactScore?.toFixed(1) }}</b>
+                </div>
+              }
+
+            </div>
+          }
+
+          @else {
+            <p class="empty-text">
+              No themes yet. Run the analysis pipeline after adding feedback.
+            </p>
+          }
+
+        </mat-card-content>
+      </mat-card>
+
+    </div>
+
+    <!-- FEEDBACK -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Recent Feedback</mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+
+     @if (feedbackItems.length > 0) {
+          <div class="feedback-list">
+
+            @for (item of feedbackItems.slice(0, 10); track item.id) {
+              <div class="feedback-item" [ngClass]="getSentimentClass(item.sentimentLabel)">
+
+                <div class="feedback-header">
+                  <strong>{{ item.source }}</strong>
+                  <span>{{ item.urgencyLevel || 'Normal' }}</span>
+                </div>
+
+                <p>{{ item.text }}</p>
+
+                <div class="feedback-meta">
+                  <span>{{ item.sentimentLabel || 'Unscanned' }}</span>
+                  <span>{{ item.productArea || 'No area' }}</span>
+                  <span>{{ item.createdAt | date:'mediumDate' }}</span>
+                </div>
+
+              </div>
+            }
+
+          </div>
+        }
+
+        @else {
+          <p class="empty-text">No feedback has been ingested yet.</p>
+        }
+
+      </mat-card-content>
+    </mat-card>
+
+  }
+
+</div>

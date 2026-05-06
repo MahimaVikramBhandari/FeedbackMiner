@@ -1,0 +1,103 @@
+<div class="page-shell">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Analysis</p>
+      <h1>Themes</h1>
+    </div>
+
+    <div class="actions">
+      <button mat-stroked-button type="button" (click)="loadThemes()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        [disabled]="running"
+        (click)="runPipeline()"
+      >
+        @if (running) {
+          <mat-spinner diameter="18"></mat-spinner>
+        } @else {
+          <mat-icon>play_arrow</mat-icon>
+        }
+        Run Analysis
+      </button>
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  @if (error) {
+    <mat-card class="error-card">
+      <mat-card-content>{{ error }}</mat-card-content>
+    </mat-card>
+  }
+
+  <!-- SUCCESS -->
+  @if (pipelineMessage) {
+    <mat-card class="success-card">
+      <mat-card-content>{{ pipelineMessage }}</mat-card-content>
+    </mat-card>
+  }
+
+  <!-- LOADING -->
+  @if (loading) {
+    <div class="state-panel">
+      <mat-spinner diameter="42"></mat-spinner>
+    </div>
+  } @else if ((themes ?? []).length > 0) {
+
+    <!-- THEMES GRID -->
+    <div class="theme-grid">
+      @for (theme of themes; track theme.id) {
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>{{ theme.label }}</mat-card-title>
+            <mat-card-subtitle>
+              {{ theme.feedbackCount }} feedback items
+            </mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content>
+            <p>{{ theme.description || 'No description yet.' }}</p>
+
+            <div class="score-grid">
+              <div>
+                <span>Impact</span>
+                <strong>{{ (theme.impactScore ?? 0).toFixed(1) }}</strong>
+              </div>
+
+              <div>
+                <span>Relevance</span>
+                <strong>{{ (theme.relevanceScore ?? 0).toFixed(1) }}</strong>
+              </div>
+
+              <div>
+                <span>Urgency</span>
+                <strong>{{ (theme.averageUrgencyScore ?? 0).toFixed(1) }}</strong>
+              </div>
+
+              <div>
+                <span>Sentiment</span>
+                <strong>{{ (theme.averageSentimentScore ?? 0).toFixed(1) }}</strong>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+
+  } @else {
+    <!-- EMPTY STATE -->
+    <mat-card>
+      <mat-card-content class="empty-state">
+        <h2>No themes yet</h2>
+        <p>
+          Add feedback, then run analysis to cluster feedback into themes.
+        </p>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

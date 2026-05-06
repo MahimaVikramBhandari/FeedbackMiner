@@ -1,0 +1,94 @@
+<div class="page-shell">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Operations</p>
+      <h1>Reports</h1>
+    </div>
+
+    <button mat-stroked-button type="button" (click)="loadReports()">
+      <mat-icon>refresh</mat-icon>
+      Refresh
+    </button>
+  </div>
+
+  @if (loading) {
+    <div class="state-panel">
+      <mat-spinner diameter="42"></mat-spinner>
+    </div>
+  } @else if (error) {
+    <mat-card class="error-card">
+      <mat-card-content>{{ error }}</mat-card-content>
+    </mat-card>
+  } @else {
+
+    <!-- DIGEST -->
+    @if (digest !== null) {
+      <div class="metrics-grid">
+        <mat-card>
+          <mat-card-content>
+            <span>Total Feedback</span>
+            <strong>{{ digest!.totalFeedbackReceived }}</strong>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card>
+          <mat-card-content>
+            <span>New Themes</span>
+            <strong>{{ digest!.newThemesIdentified }}</strong>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card>
+          <mat-card-content>
+            <span>Active Themes</span>
+            <strong>{{ digest!.activeThemes }}</strong>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card>
+          <mat-card-content>
+            <span>Critical Items</span>
+            <strong>{{ digest!.criticalUrgencyCount }}</strong>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    }
+
+    <!-- RUNS -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Processing Runs</mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+
+        @if ((runs ?? []).length > 0) {
+          <div class="run-list">
+
+            @for (run of runs; track run.id ?? run.runId) {
+              <div class="run-row">
+
+                <div>
+                  <strong>{{ run.runName || run.name || 'Processing run' }}</strong>
+                  <span>{{ run.startedAt | date:'short' }}</span>
+                </div>
+
+                <div class="run-stats">
+                  <span>{{ run.status }}</span>
+                  <span>{{ run.feedbackProcessed || run.feedbackItemCount || 0 }} feedback</span>
+                  <span>{{ run.themesExtracted || run.themeCount || 0 }} themes</span>
+                </div>
+
+              </div>
+            }
+
+          </div>
+        } @else {
+          <p class="empty-text">No processing runs yet.</p>
+        }
+
+      </mat-card-content>
+    </mat-card>
+
+  }
+</div>
