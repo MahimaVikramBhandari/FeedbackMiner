@@ -54,9 +54,15 @@ public class FeedbackProcessingService
             FeedbackItemCount = feedbackItems.Count,
             EmbeddingModel = "text-embedding-3-small",
             ClusteringAlgorithm = "Similarity-based K-means",
+            ParametersJson = JsonSerializer.Serialize(new { clusterSimilarityThreshold }),
             StartedAt = DateTime.UtcNow,
-            Status = "Running"
+            Status = "Running",
+            ErrorMessage = ""
         };
+
+        // Persist the run immediately so dependent entities (ThemeClusters) can reference it.
+        _dbContext.ProcessingRuns.Add(processingRun);
+        await _dbContext.SaveChangesAsync();
 
         try
         {
@@ -96,8 +102,7 @@ public class FeedbackProcessingService
             processingRun.Status = "Completed";
             processingRun.CompletedAt = DateTime.UtcNow;
 
-            // Save processing run
-            _dbContext.ProcessingRuns.Add(processingRun);
+            // processingRun is already tracked; just persist final metrics/status.
             await _dbContext.SaveChangesAsync();
 
             return processingRun;
@@ -108,7 +113,7 @@ public class FeedbackProcessingService
             processingRun.ErrorMessage = ex.Message;
             processingRun.CompletedAt = DateTime.UtcNow;
 
-            _dbContext.ProcessingRuns.Add(processingRun);
+            // processingRun is already tracked; persist failure status/error.
             await _dbContext.SaveChangesAsync();
 
             throw;
@@ -278,6 +283,7 @@ public class FeedbackProcessingService
                     ImpactScore = rec.ImpactScore,
                     AffectedAreasJson = rec.AffectedAreas,
                     BenefitSegmentsJson = rec.BenefitSegments,
+                    AssignedTeam = "Unassigned",
                     Status = "Proposed",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow

@@ -68,6 +68,10 @@ public class FeedbackDbContext : DbContext
             .HasIndex(ar => ar.ThemeId);
 
         modelBuilder.Entity<ProcessingRun>()
+            .Property(pr => pr.ErrorMessage)
+            .HasDefaultValue("");
+
+        modelBuilder.Entity<ProcessingRun>()
             .HasMany(pr => pr.Clusters)
             .WithOne()
             .HasForeignKey(tc => tc.ProcessingRunId)

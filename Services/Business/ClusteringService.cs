@@ -80,6 +80,14 @@ public class ClusteringService
                 cluster.Items.Select(item => embeddings[item.Id]).ToList(),
                 cluster.CentroidEmbedding);
 
+            // Populate similarity scores for each item in the cluster
+            foreach (var item in cluster.Items)
+            {
+                item.SimilarityScore = _embeddingService.CalculateSimilarity(
+                    embeddings[item.Id],
+                    cluster.CentroidEmbedding);
+            }
+
             cluster.SilhouetteScore = CalculateSilhouetteScore(cluster, clusters, embeddings);
 
             clusters.Add(cluster);
@@ -127,6 +135,51 @@ public class ClusteringService
         }
 
         return duplicates;
+    }
+
+    /// <summary>
+    /// Assign items to closest clusters AND populate similarity scores
+    /// Returns a dictionary with assignment and similarity for each item
+    /// </summary>
+    public Dictionary<Guid, (int clusterNumber, double similarity)> AssignItemsToClustersDeterministicWithScores(
+        List<FeedbackCluster> clusters,
+        List<FeedbackItem> items)
+    {
+        var results = new Dictionary<Guid, (int, double)>();
+        var embeddings = new Dictionary<Guid, float[]>();
+
+        foreach (var item in items.Where(i => !string.IsNullOrEmpty(i.EmbeddingJson)))
+        {
+            embeddings[item.Id] = _embeddingService.DeserializeEmbedding(item.EmbeddingJson);
+        }
+
+        foreach (var item in items)
+        {
+            if (!embeddings.ContainsKey(item.Id))
+                continue;
+
+            int closestCluster = 0;
+            double maxSimilarity = -1;
+
+            for (int i = 0; i < clusters.Count; i++)
+            {
+                var similarity = _embeddingService.CalculateSimilarity(
+                    embeddings[item.Id],
+                    clusters[i].CentroidEmbedding);
+
+                if (similarity > maxSimilarity)
+                {
+                    maxSimilarity = similarity;
+                    closestCluster = i;
+                }
+            }
+
+            results[item.Id] = (closestCluster, maxSimilarity);
+            // Also populate the item's similarity score directly
+            item.SimilarityScore = maxSimilarity;
+        }
+
+        return results;
     }
 
     /// <summary>
