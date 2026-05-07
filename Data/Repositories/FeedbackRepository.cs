@@ -14,13 +14,9 @@ public class FeedbackRepository : IFeedbackRepository
         await _context.FeedbackItems.AddAsync(item);
     }
 
-    public async Task<List<FeedbackItem>> GetRecentAsync(int take = 100)
+    public async Task<FeedbackItem?> GetFeedbackById(Guid id)
     {
-        return await _context.FeedbackItems
-            .AsNoTracking()
-            .OrderByDescending(item => item.CreatedAt)
-            .Take(take)
-            .ToListAsync();
+       return await  _context.FeedbackItems.FindAsync(id);
     }
 
     public async Task SaveChangesAsync()

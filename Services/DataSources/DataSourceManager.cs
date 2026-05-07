@@ -49,11 +49,21 @@ public class DataSourceManager
                 return result;
             }
 
+            // Validate required credentials
+            var requiredCredentials = adapter.GetRequiredCredentials();
+            var missingCredentials = requiredCredentials.Where(c => !credentials.ContainsKey(c)).ToList();
+            if (missingCredentials.Any())
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Missing required credentials: {string.Join(", ", missingCredentials)}. Required credentials: {string.Join(", ", requiredCredentials)}";
+                return result;
+            }
+
             _logger.LogInformation($"Testing connection to {adapter.GetSourceName()}");
             if (!await adapter.TestConnectionAsync(credentials))
             {
                 result.Success = false;
-                result.ErrorMessage = "Connection test failed";
+                result.ErrorMessage = $"Connection test failed for {adapter.GetSourceName()}. Please verify your credentials and that the resource is accessible.";
                 return result;
             }
 

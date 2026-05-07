@@ -17,7 +17,7 @@ public class ClusteringService
     /// Cluster feedback items by embedding similarity
     /// </summary>
     public async Task<List<FeedbackCluster>> ClusterByEmbeddingAsync(
-        List<FeedbackItem> items, 
+        List<FeedbackItem> items,
         double minSimilarity = DefaultMinSimilarity,
         int? maxClusters = null)
     {
@@ -80,6 +80,14 @@ public class ClusteringService
                 cluster.Items.Select(item => embeddings[item.Id]).ToList(),
                 cluster.CentroidEmbedding);
 
+            // Populate similarity scores for each item in the cluster
+            foreach (var item in cluster.Items)
+            {
+                item.SimilarityScore = _embeddingService.CalculateSimilarity(
+                    embeddings[item.Id],
+                    cluster.CentroidEmbedding);
+            }
+
             cluster.SilhouetteScore = CalculateSilhouetteScore(cluster, clusters, embeddings);
 
             clusters.Add(cluster);
@@ -127,6 +135,51 @@ public class ClusteringService
         }
 
         return duplicates;
+    }
+
+    /// <summary>
+    /// Assign items to closest clusters AND populate similarity scores
+    /// Returns a dictionary with assignment and similarity for each item
+    /// </summary>
+    public Dictionary<Guid, (int clusterNumber, double similarity)> AssignItemsToClustersDeterministicWithScores(
+        List<FeedbackCluster> clusters,
+        List<FeedbackItem> items)
+    {
+        var results = new Dictionary<Guid, (int, double)>();
+        var embeddings = new Dictionary<Guid, float[]>();
+
+        foreach (var item in items.Where(i => !string.IsNullOrEmpty(i.EmbeddingJson)))
+        {
+            embeddings[item.Id] = _embeddingService.DeserializeEmbedding(item.EmbeddingJson);
+        }
+
+        foreach (var item in items)
+        {
+            if (!embeddings.ContainsKey(item.Id))
+                continue;
+
+            int closestCluster = 0;
+            double maxSimilarity = -1;
+
+            for (int i = 0; i < clusters.Count; i++)
+            {
+                var similarity = _embeddingService.CalculateSimilarity(
+                    embeddings[item.Id],
+                    clusters[i].CentroidEmbedding);
+
+                if (similarity > maxSimilarity)
+                {
+                    maxSimilarity = similarity;
+                    closestCluster = i;
+                }
+            }
+
+            results[item.Id] = (closestCluster, maxSimilarity);
+            // Also populate the item's similarity score directly
+            item.SimilarityScore = maxSimilarity;
+        }
+
+        return results;
     }
 
     /// <summary>
@@ -181,59 +234,117 @@ public class ClusteringService
     }
 
     private double CalculateSilhouetteScore(
-        FeedbackCluster cluster,
-        List<FeedbackCluster> allClusters,
-        Dictionary<Guid, float[]> embeddings)
+    FeedbackCluster cluster,
+    List<FeedbackCluster> allClusters,
+    Dictionary<Guid, float[]> embeddings)
     {
-        if (cluster.Items.Count == 1)
-            return 1.0; // Single-item clusters have perfect silhouette
+        // Silhouette score for singleton clusters is conventionally 0
+        if (cluster.Items.Count <= 1)
+            return 0;
 
         double totalSilhouette = 0;
+        int validItems = 0;
 
         foreach (var item in cluster.Items)
         {
-            if (!embeddings.ContainsKey(item.Id))
+            if (!embeddings.TryGetValue(item.Id, out var currentEmbedding))
                 continue;
 
-            // Within-cluster distance (a)
-            var a = cluster.Items
-                .Where(i => i.Id != item.Id && embeddings.ContainsKey(i.Id))
-                .Average(i => 1 - _embeddingService.CalculateSimilarity(
-                    embeddings[item.Id],
-                    embeddings[i.Id]));
+            // =====================================================
+            // a(i): Average distance to items in SAME cluster
+            // =====================================================
 
-            // Between-cluster distance (b)
-            var b = double.MaxValue;
-            foreach (var otherCluster in allClusters.Where(c => c.ClusterNumber != cluster.ClusterNumber))
+            var sameClusterItems = cluster.Items
+                .Where(i => i.Id != item.Id && embeddings.ContainsKey(i.Id))
+                .ToList();
+
+            double a = 0;
+
+            if (sameClusterItems.Any())
             {
-                var avgDistance = otherCluster.Items
+                a = sameClusterItems.Average(i =>
+                {
+                    var similarity = _embeddingService.CalculateSimilarity(
+                        currentEmbedding,
+                        embeddings[i.Id]);
+
+                    return 1 - similarity;
+                });
+            }
+
+            // =====================================================
+            // b(i): Smallest average distance to OTHER clusters
+            // =====================================================
+
+            double b = double.MaxValue;
+
+            foreach (var otherCluster in allClusters
+                         .Where(c => c.ClusterNumber != cluster.ClusterNumber))
+            {
+                var otherClusterItems = otherCluster.Items
                     .Where(i => embeddings.ContainsKey(i.Id))
-                    .Average(i => 1 - _embeddingService.CalculateSimilarity(
-                        embeddings[item.Id],
-                        embeddings[i.Id]));
+                    .ToList();
+
+                if (!otherClusterItems.Any())
+                    continue;
+
+                double avgDistance = otherClusterItems.Average(i =>
+                {
+                    var similarity = _embeddingService.CalculateSimilarity(
+                        currentEmbedding,
+                        embeddings[i.Id]);
+
+                    return 1 - similarity;
+                });
 
                 b = Math.Min(b, avgDistance);
             }
 
+            // No neighboring cluster found
             if (b == double.MaxValue)
                 b = 0;
 
-            var s = (b - a) / Math.Max(a, b);
-            totalSilhouette += s;
+            double silhouette;
+
+            // Case:
+            // a = 0 and b = 0
+            // Means:
+            // - identical embeddings
+            // - overlapping clusters
+            // - mathematically undefined i.e. NaN due to division by zero
+            // Conventionally treated as 0
+            if (a == 0 && b == 0)
+            {
+                silhouette = 0;
+            }
+            else
+            {
+                double denominator = Math.Max(a, b);
+
+                silhouette = denominator == 0
+                    ? 0
+                    : (b - a) / denominator;
+            }
+
+            totalSilhouette += silhouette;
+            validItems++;
         }
 
-        return totalSilhouette / cluster.Items.Count;
+        return validItems == 0
+            ? 0
+            : totalSilhouette / validItems;
+    }
+
+    /// <summary>
+    /// Represents a cluster of similar feedback items
+    /// </summary>
+    public class FeedbackCluster
+    {
+        public int ClusterNumber { get; set; }
+        public List<FeedbackItem> Items { get; set; } = new List<FeedbackItem>();
+        public float[] CentroidEmbedding { get; set; }
+        public double AverageSimilarity { get; set; }
+        public double SilhouetteScore { get; set; }
     }
 }
 
-/// <summary>
-/// Represents a cluster of similar feedback items
-/// </summary>
-public class FeedbackCluster
-{
-    public int ClusterNumber { get; set; }
-    public List<FeedbackItem> Items { get; set; } = new List<FeedbackItem>();
-    public float[] CentroidEmbedding { get; set; }
-    public double AverageSimilarity { get; set; }
-    public double SilhouetteScore { get; set; }
-}

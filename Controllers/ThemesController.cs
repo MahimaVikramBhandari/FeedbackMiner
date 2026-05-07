@@ -59,8 +59,7 @@ public class ThemesController : ControllerBase
                     Priority = ar.Priority,
                     EstimatedEffort = ar.EstimatedEffort,
                     ImpactScore = ar.ImpactScore,
-                    UsefulnessRating = ar.UsefulnessRating,
-                    Status = ar.Status
+                    UsefulnessRating = ar.UsefulnessRating
                 })
                 .ToList();
 
@@ -143,22 +142,18 @@ public class ThemesController : ControllerBase
         {
             var feedbackItems = _dbContext.FeedbackItems
                 .Where(f => f.ThemeId == themeId)
-                .OrderByDescending(f => f.CreatedAt)
+                .OrderByDescending(f => f.CreatedOn)
                 .Take(take)
                 .Select(f => new FeedbackSummaryDto
                 {
                     Id = f.Id,
                     Text = f.ProcessedText ?? f.Text,
                     Source = f.Source,
-                    Rating = f.Rating,
                     SentimentScore = f.SentimentScore,
                     SentimentLabel = f.SentimentLabel,
                     UrgencyScore = f.UrgencyScore,
                     UrgencyLevel = f.UrgencyLevel,
-                    ProductArea = f.ProductArea,
-                    Category = f.Category,
-                    CustomerSegment = f.CustomerSegment,
-                    CreatedAt = f.CreatedAt
+                    CreatedAt = f.CreatedOn
                 })
                 .ToList();
 
@@ -181,9 +176,6 @@ public class ThemesController : ControllerBase
             var query = _dbContext.ActionRecommendations
                 .Where(ar => ar.ThemeId == themeId);
 
-            if (!string.IsNullOrEmpty(status))
-                query = query.Where(ar => ar.Status == status);
-
             var recommendations = query
                 .OrderByDescending(ar => ar.ImpactScore)
                 .Select(ar => new ActionRecommendationDto
@@ -195,8 +187,7 @@ public class ThemesController : ControllerBase
                     Priority = ar.Priority,
                     EstimatedEffort = ar.EstimatedEffort,
                     ImpactScore = ar.ImpactScore,
-                    UsefulnessRating = ar.UsefulnessRating,
-                    Status = ar.Status
+                    UsefulnessRating = ar.UsefulnessRating
                 })
                 .ToList();
 

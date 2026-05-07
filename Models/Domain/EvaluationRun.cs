@@ -56,12 +56,12 @@ public class EvaluationRun
     /// <summary>
     /// Evaluation status
     /// </summary>
-    public string Status { get; set; } // "Pending", "InProgress", "Completed", "Failed"
+    public string Status { get; set; } // "InProgress", "Completed", "Failed"
 
     /// <summary>
     /// Any errors encountered during evaluation
     /// </summary>
-    public string ErrorMessage { get; set; }
+    public string? ErrorMessage { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public DateTime? CompletedAt { get; set; }

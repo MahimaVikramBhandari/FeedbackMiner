@@ -58,13 +58,8 @@ public class JsonFeedbackAdapter : IFeedbackSourceAdapter
                     Source = record.Source ?? "JSON Import",
                     Text = record.Text ?? record.Feedback ?? "",
                     ProcessedText = record.Text ?? record.Feedback ?? "",
-                    Rating = record.Rating,
-                    ProductArea = record.ProductArea ?? "General",
-                    Category = record.Category ?? "Feedback",
-                    CustomerSegment = record.CustomerSegment ?? "Unknown",
                     Language = record.Language ?? "en",
-                    CreatedAt = createdDate,
-                    MetadataJson = JsonSerializer.Serialize(record)
+                    CreatedOn = createdDate
                 };
 
                 feedbackItems.Add(item);

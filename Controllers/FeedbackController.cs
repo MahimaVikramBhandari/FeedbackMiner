@@ -5,11 +5,11 @@ using Newtonsoft.Json;
 [Route("api/feedback")]
 public class FeedbackController : ControllerBase
 {
-    private readonly FeedbackService _service;
+    private readonly FeedbackService _feedbackService;
 
     public FeedbackController(FeedbackService service)
     {
-        _service = service;
+        _feedbackService = service;
     }
 
     [HttpGet]
@@ -60,33 +60,16 @@ public class FeedbackController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateFeedbackRequest request)
+    public async Task<IActionResult> Create(CreateFeedbackRequest request)
     {
-        try
+        var item = new FeedbackItem
         {
-            if (request == null)
-            {
-                return BadRequest(new
-                {
-                    success = false,
-                    error = "Request body is null"
-                });
-            }
+            Id = Guid.NewGuid(),
+            Source = request.Source,
+            Text = request.Text
+        };
 
-            var item = new FeedbackItem
-            {
-                Id = Guid.NewGuid(),
-                Source = request.Source,
-                Text = request.Text,
-                Rating = request.Rating,
-                ProductArea = request.ProductArea,
-                Category = request.Category,
-                CustomerSegment = request.CustomerSegment,
-                CreatedAt = DateTime.UtcNow,
-                MetadataJson = JsonConvert.SerializeObject(request.Metadata)
-            };
-
-            await _service.IngestAsync(item);
+        await _feedbackService.IngestAsync(item);
 
             return Ok(new
             {
@@ -112,5 +95,21 @@ public class FeedbackController : ControllerBase
                 details = ex.InnerException?.Message ?? ex.Message
             });
         }
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<FeedbackItem>> GetFeedback(Guid Id) 
+    {
+        var result = await _feedbackService.GetFeedbackById(Id);
+        if (result == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                error = $"Feedback with id {Id} not found"
+            });
+        }
+
+        return Ok(result);
     }
 }

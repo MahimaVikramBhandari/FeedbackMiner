@@ -53,8 +53,7 @@ public class ReportingService
                     Priority = ar.Priority,
                     EstimatedEffort = ar.EstimatedEffort,
                     ImpactScore = ar.ImpactScore,
-                    UsefulnessRating = ar.UsefulnessRating,
-                    Status = ar.Status
+                    UsefulnessRating = ar.UsefulnessRating
                 }).ToList(),
                 CreatedAt = theme.CreatedAt,
                 UpdatedAt = theme.UpdatedAt
@@ -75,7 +74,7 @@ public class ReportingService
         var weekEnd = weekStart.Value.AddDays(7);
 
         var weeklyFeedback = _dbContext.FeedbackItems
-            .Where(f => f.CreatedAt >= weekStart && f.CreatedAt < weekEnd)
+            .Where(f => f.CreatedOn >= weekStart && f.CreatedOn < weekEnd)
             .ToList();
 
         var newThemes = _dbContext.Themes
@@ -124,15 +123,10 @@ public class ReportingService
                 Priority = ar.Priority,
                 EstimatedEffort = ar.EstimatedEffort,
                 ImpactScore = ar.ImpactScore,
-                UsefulnessRating = ar.UsefulnessRating,
-                Status = ar.Status
+                UsefulnessRating = ar.UsefulnessRating
             }).ToList(),
             FeedbackSourceBreakdown = weeklyFeedback
                 .GroupBy(f => f.Source)
-                .ToDictionary(g => g.Key, g => g.Count()),
-            ProductAreaBreakdown = weeklyFeedback
-                .Where(f => !string.IsNullOrEmpty(f.ProductArea))
-                .GroupBy(f => f.ProductArea)
                 .ToDictionary(g => g.Key, g => g.Count()),
             SentimentBreakdown = new Dictionary<string, int>
             {
@@ -174,15 +168,11 @@ public class ReportingService
                     Id = f.Id,
                     Text = f.ProcessedText ?? f.Text,
                     Source = f.Source,
-                    Rating = f.Rating,
                     SentimentScore = f.SentimentScore,
                     SentimentLabel = f.SentimentLabel,
                     UrgencyScore = f.UrgencyScore,
                     UrgencyLevel = f.UrgencyLevel,
-                    ProductArea = f.ProductArea,
-                    Category = f.Category,
-                    CustomerSegment = f.CustomerSegment,
-                    CreatedAt = f.CreatedAt
+                    CreatedAt = f.CreatedOn
                 }).ToList()
             };
 

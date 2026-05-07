@@ -76,7 +76,7 @@ public class ScheduledDigestService
             digestRun.DigestContentJson = JsonSerializer.Serialize(digestContent);
             digestRun.RecipientEmailsJson = JsonSerializer.Serialize(recipientEmails ?? new List<string>());
             digestRun.Status = "Generated";
-            digestRun.GeneratedAt = DateTime.UtcNow;
+            digestRun.CompletedAt = DateTime.UtcNow;
 
             _logger.LogInformation($"Digest generated successfully with {digestRun.FeedbackCount} feedback items");
 

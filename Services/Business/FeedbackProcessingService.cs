@@ -1,4 +1,5 @@
 using System.Text.Json;
+using static ClusteringService;
 
 /// <summary>
 /// Orchestrates the entire feedback processing pipeline:
@@ -54,9 +55,14 @@ public class FeedbackProcessingService
             FeedbackItemCount = feedbackItems.Count,
             EmbeddingModel = "text-embedding-3-small",
             ClusteringAlgorithm = "Similarity-based K-means",
+            ParametersJson = JsonSerializer.Serialize(new { clusterSimilarityThreshold }),
             StartedAt = DateTime.UtcNow,
             Status = "Running"
         };
+
+        // Persist the run immediately so dependent entities (ThemeClusters) can reference it.
+        _dbContext.ProcessingRuns.Add(processingRun);
+        await _dbContext.SaveChangesAsync();
 
         try
         {
@@ -82,7 +88,7 @@ public class FeedbackProcessingService
 
             // Step 5: Label themes and create Theme entities
             Console.WriteLine("Step 5: Labeling themes...");
-            var themes = await LabelThemesAsync(dbClusters, feedbackItems);
+            var themes = await LabelThemesAsync(dbClusters, feedbackItems, processingRun.Id);
             processingRun.ThemeCount = themes.Count;
 
             // Step 6: Generate action recommendations
@@ -96,8 +102,6 @@ public class FeedbackProcessingService
             processingRun.Status = "Completed";
             processingRun.CompletedAt = DateTime.UtcNow;
 
-            // Save processing run
-            _dbContext.ProcessingRuns.Add(processingRun);
             await _dbContext.SaveChangesAsync();
 
             return processingRun;
@@ -108,7 +112,6 @@ public class FeedbackProcessingService
             processingRun.ErrorMessage = ex.Message;
             processingRun.CompletedAt = DateTime.UtcNow;
 
-            _dbContext.ProcessingRuns.Add(processingRun);
             await _dbContext.SaveChangesAsync();
 
             throw;
@@ -199,7 +202,7 @@ public class FeedbackProcessingService
 
     private async Task<List<Theme>> LabelThemesAsync(
         List<ThemeCluster> clusters,
-        List<FeedbackItem> allItems)
+        List<FeedbackItem> allItems, Guid processingRunId)
     {
         var themes = new List<Theme>();
 
@@ -216,6 +219,7 @@ public class FeedbackProcessingService
             var theme = new Theme
             {
                 Id = Guid.NewGuid(),
+                ProcessingRunId = processingRunId,
                 Label = labelResult.Label,
                 Description = labelResult.Description,
                 RelevanceScore = labelResult.RelevanceScore,
@@ -278,7 +282,6 @@ public class FeedbackProcessingService
                     ImpactScore = rec.ImpactScore,
                     AffectedAreasJson = rec.AffectedAreas,
                     BenefitSegmentsJson = rec.BenefitSegments,
-                    Status = "Proposed",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };

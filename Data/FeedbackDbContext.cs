@@ -21,7 +21,7 @@ public class FeedbackDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configure FeedbackItem relationships
+        // Configure FeedbackItem relationships and indexes
         modelBuilder.Entity<FeedbackItem>()
             .HasOne(f => f.Theme)
             .WithMany(t => t.FeedbackItems)
@@ -34,7 +34,13 @@ public class FeedbackDbContext : DbContext
             .HasForeignKey(f => f.ThemeClusterId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // Configure Theme relationships
+        modelBuilder.Entity<FeedbackItem>()
+            .HasIndex(f => f.ThemeId);
+
+        modelBuilder.Entity<FeedbackItem>()
+            .HasIndex(f => f.ThemeClusterId);
+
+        // Configure Theme relationships and indexes
         modelBuilder.Entity<Theme>()
             .HasMany(t => t.Clusters)
             .WithOne(tc => tc.SuggestedTheme)
@@ -47,33 +53,44 @@ public class FeedbackDbContext : DbContext
             .HasForeignKey(ar => ar.ThemeId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Configure ThemeCluster relationships
-        modelBuilder.Entity<ThemeCluster>()
-            .HasMany(tc => tc.FeedbackItems)
-            .WithOne(f => f.ThemeCluster)
-            .HasForeignKey(f => f.ThemeClusterId)
+        modelBuilder.Entity<Theme>()
+            .HasOne<ProcessingRun>()
+            .WithMany()
+            .HasForeignKey(t => t.ProcessingRunId)
             .OnDelete(DeleteBehavior.SetNull);
-
-        // Index for common queries
-        modelBuilder.Entity<FeedbackItem>()
-            .HasIndex(f => f.ThemeClusterId);
-
-        modelBuilder.Entity<FeedbackItem>()
-            .HasIndex(f => f.ThemeId);
 
         modelBuilder.Entity<Theme>()
             .HasIndex(t => t.Label);
 
+        modelBuilder.Entity<Theme>()
+            .HasIndex(t => t.ProcessingRunId);
+
+        // Configure ActionRecommendation indexes
         modelBuilder.Entity<ActionRecommendation>()
             .HasIndex(ar => ar.ThemeId);
 
+        // Configure ProcessingRun
+ 
         modelBuilder.Entity<ProcessingRun>()
             .HasMany(pr => pr.Clusters)
             .WithOne()
             .HasForeignKey(tc => tc.ProcessingRunId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Configure EvaluationRun relationships
+        // Configure ThemeCluster relationships and indexes
+        modelBuilder.Entity<ThemeCluster>()
+            .HasMany(tc => tc.FeedbackItems)
+            .WithOne(f => f.ThemeCluster)
+            .HasForeignKey(f => f.ThemeClusterId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ThemeCluster>()
+            .HasIndex(tc => tc.ProcessingRunId);
+
+        modelBuilder.Entity<ThemeCluster>()
+            .HasIndex(tc => tc.SuggestedThemeId);
+
+        // Configure EvaluationRun relationships and indexes
         modelBuilder.Entity<EvaluationRun>()
             .HasOne(er => er.ProcessingRun)
             .WithMany()
@@ -92,30 +109,48 @@ public class FeedbackDbContext : DbContext
             .HasForeignKey(are => are.EvaluationRunId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Configure ThemeEvaluation relationships
+        modelBuilder.Entity<EvaluationRun>()
+            .HasIndex(er => er.ProcessingRunId);
+
+        // Configure ThemeEvaluation relationships and indexes
         modelBuilder.Entity<ThemeEvaluation>()
             .HasOne(te => te.Theme)
             .WithMany()
             .HasForeignKey(te => te.ThemeId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Configure ActionRecommendationEvaluation relationships
+        modelBuilder.Entity<ThemeEvaluation>()
+            .HasOne(te => te.EvaluationRun)
+            .WithMany(er => er.ThemeEvaluations)
+            .HasForeignKey(te => te.EvaluationRunId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ThemeEvaluation>()
+            .HasIndex(te => te.ThemeId);
+
+        modelBuilder.Entity<ThemeEvaluation>()
+            .HasIndex(te => te.EvaluationRunId);
+
+        // Configure ActionRecommendationEvaluation relationships and indexes
         modelBuilder.Entity<ActionRecommendationEvaluation>()
             .HasOne(are => are.ActionRecommendation)
             .WithMany()
             .HasForeignKey(are => are.ActionRecommendationId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Index for evaluation queries
-        modelBuilder.Entity<EvaluationRun>()
-            .HasIndex(er => er.ProcessingRunId);
-
-        modelBuilder.Entity<ThemeEvaluation>()
-            .HasIndex(te => te.ThemeId);
+        modelBuilder.Entity<ActionRecommendationEvaluation>()
+            .HasOne(are => are.EvaluationRun)
+            .WithMany(er => er.ActionRecommendationEvaluations)
+            .HasForeignKey(are => are.EvaluationRunId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ActionRecommendationEvaluation>()
             .HasIndex(are => are.ActionRecommendationId);
 
+        modelBuilder.Entity<ActionRecommendationEvaluation>()
+            .HasIndex(are => are.EvaluationRunId);
+
+        // Configure ScheduledDigestRun indexes
         modelBuilder.Entity<ScheduledDigestRun>()
             .HasIndex(sdr => sdr.WeekStart);
     }

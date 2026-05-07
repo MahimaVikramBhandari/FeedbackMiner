@@ -109,8 +109,7 @@ public class EvaluationController : ControllerBase
                     MetThreshold = te.MetRelevanceThreshold,
                     FeedbackCount = te.EstimatedAffectedCustomers,
                     FeedbackPercentage = te.FeedbackPercentage,
-                    Trend = te.Trend,
-                    ReviewStatus = te.ReviewStatus
+                    Trend = te.Trend
                 })
                 .ToList();
 
@@ -159,9 +158,7 @@ public class EvaluationController : ControllerBase
                     UsefulnessScore = are.UsefulnessScore,
                     MetThreshold = are.MetUsefulnessThreshold,
                     FeasibilityScore = are.FeasibilityScore,
-                    Priority = are.ActionRecommendation.Priority,
-                    Status = are.Status,
-                    ReviewNotes = are.ReviewNotes
+                    Priority = are.ActionRecommendation.Priority
                 })
                 .ToList();
 

@@ -1,5 +1,6 @@
 using System.Globalization;
 using CsvHelper;
+using CsvHelper.Configuration;
 
 /// <summary>
 /// CSV file adapter for importing feedback from CSV files
@@ -15,12 +16,21 @@ public class CsvFeedbackAdapter : IFeedbackSourceAdapter
         try
         {
             if (!credentials.ContainsKey("FilePath"))
-                return false;
+            {
+                throw new ArgumentException("FilePath credential is required");
+            }
 
             var filePath = credentials["FilePath"];
-            return File.Exists(filePath);
+            
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return false;
+            }
+
+            bool exists = File.Exists(filePath);
+            return exists;
         }
-        catch
+        catch (Exception ex)
         {
             return false;
         }
@@ -43,6 +53,9 @@ public class CsvFeedbackAdapter : IFeedbackSourceAdapter
             using (var reader = new StreamReader(filePath))
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
+                // Configure CsvHelper to allow missing fields (properties not in CSV)
+                csv.Context.RegisterClassMap<CsvFeedbackRecordMap>();
+                
                 var records = csv.GetRecords<CsvFeedbackRecord>().ToList();
 
                 foreach (var record in records)
@@ -54,19 +67,11 @@ public class CsvFeedbackAdapter : IFeedbackSourceAdapter
                     var item = new FeedbackItem
                     {
                         Id = Guid.NewGuid(),
-                        Source = "CSV Import",
-                        Text = record.Text ?? record.Feedback ?? "",
-                        ProcessedText = record.Text ?? record.Feedback ?? "",
-                        Rating = ParseInt(record.Rating),
-                        ProductArea = record.ProductArea ?? "General",
-                        Category = record.Category ?? "Feedback",
-                        CustomerSegment = record.CustomerSegment ?? "Unknown",
+                        Source = !string.IsNullOrWhiteSpace(record.Source) ? record.Source : "CSV Import",
+                        Text = !string.IsNullOrWhiteSpace(record.Text) ? record.Text : (!string.IsNullOrWhiteSpace(record.Feedback) ? record.Feedback : ""),
+                        ProcessedText = !string.IsNullOrWhiteSpace(record.Text) ? record.Text : (!string.IsNullOrWhiteSpace(record.Feedback) ? record.Feedback : ""),
                         Language = "en",
-                        CreatedAt = createdDate,
-                        MetadataJson = System.Text.Json.JsonSerializer.Serialize(new
-                        {
-                            original_fields = record
-                        })
+                        CreatedOn = createdDate
                     };
 
                     feedbackItems.Add(item);
@@ -117,4 +122,22 @@ public class CsvFeedbackRecord
     public string CustomerSegment { get; set; }
     public string CreatedAt { get; set; }
     public string Source { get; set; }
+}
+
+/// <summary>
+/// CsvHelper mapping for CsvFeedbackRecord to allow optional fields
+/// </summary>
+public class CsvFeedbackRecordMap : CsvHelper.Configuration.ClassMap<CsvFeedbackRecord>
+{
+    public CsvFeedbackRecordMap()
+    {
+        Map(m => m.Text).Optional();
+        Map(m => m.Feedback).Optional();
+        Map(m => m.Rating).Optional();
+        Map(m => m.ProductArea).Optional();
+        Map(m => m.Category).Optional();
+        Map(m => m.CustomerSegment).Optional();
+        Map(m => m.CreatedAt).Optional();
+        Map(m => m.Source).Optional();
+    }
 }

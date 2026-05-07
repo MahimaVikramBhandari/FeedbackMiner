@@ -48,17 +48,12 @@ public class ScheduledDigestRun
     /// <summary>
     /// Timestamp when digest was generated
     /// </summary>
-    public DateTime? GeneratedAt { get; set; }
-
-    /// <summary>
-    /// Timestamp when digest was sent
-    /// </summary>
-    public DateTime? SentAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
 
     /// <summary>
     /// Error message if generation/sending failed
     /// </summary>
-    public string ErrorMessage { get; set; }
+    public string? ErrorMessage { get; set; }
 
     public DateTime CreatedAt { get; set; }
 }

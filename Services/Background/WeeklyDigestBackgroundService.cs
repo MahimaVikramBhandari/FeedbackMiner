@@ -44,14 +44,23 @@ public class WeeklyDigestBackgroundService : BackgroundService
                 }
 
                 // Generate digest for last week
-                using (var scope = _serviceProvider.CreateScope())
+                if (!stoppingToken.IsCancellationRequested)
                 {
-                    var digestService = scope.ServiceProvider.GetRequiredService<ScheduledDigestService>();
-                    var weekStart = DateTime.UtcNow.AddDays(-(int)DateTime.UtcNow.DayOfWeek).Date;
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        var digestService = scope.ServiceProvider.GetRequiredService<ScheduledDigestService>();
+                        var weekStart = DateTime.UtcNow.AddDays(-(int)DateTime.UtcNow.DayOfWeek).Date;
 
-                    await digestService.GenerateWeeklyDigestAsync(weekStart);
-                    _logger.LogInformation("Weekly digest generated successfully");
+                        await digestService.GenerateWeeklyDigestAsync(weekStart);
+                        _logger.LogInformation("Weekly digest generated successfully");
+                    }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during graceful shutdown
+                _logger.LogInformation("Weekly Digest Background Service is shutting down");
+                break;
             }
             catch (Exception ex)
             {
@@ -59,7 +68,10 @@ public class WeeklyDigestBackgroundService : BackgroundService
             }
 
             // Check again after a short delay
-            await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+            if (!stoppingToken.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+            }
         }
 
         _logger.LogInformation("Weekly Digest Background Service stopped");

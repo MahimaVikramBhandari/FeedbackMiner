@@ -78,7 +78,7 @@ public class ProcessingRun
     /// <summary>
     /// Error message if processing failed
     /// </summary>
-    public string ErrorMessage { get; set; }
+    public string? ErrorMessage { get; set; }
 
     // Navigation
     public ICollection<ThemeCluster> Clusters { get; set; } = new List<ThemeCluster>();
