@@ -50,16 +50,6 @@ public class ActionRecommendation
     public double? UsefulnessRating { get; set; }
 
     /// <summary>
-    /// Implementation status (Proposed, In Progress, Completed, Rejected)
-    /// </summary>
-    public string Status { get; set; } = "Proposed";
-
-    /// <summary>
-    /// Owner or team assigned to this action
-    /// </summary>
-    public string AssignedTeam { get; set; }
-
-    /// <summary>
     /// JSON array of affected product areas
     /// </summary>
     public string AffectedAreasJson { get; set; }

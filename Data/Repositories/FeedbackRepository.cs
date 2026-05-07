@@ -12,6 +12,11 @@
         await _context.FeedbackItems.AddAsync(item);
     }
 
+    public async Task<FeedbackItem?> GetFeedbackById(Guid id)
+    {
+       return await  _context.FeedbackItems.FindAsync(id);
+    }
+
     public async Task SaveChangesAsync()
     {
         await _context.SaveChangesAsync();

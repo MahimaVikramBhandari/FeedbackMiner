@@ -42,16 +42,5 @@ public class ThemeEvaluation
     /// </summary>
     public string Trend { get; set; } // "Increasing", "Stable", "Decreasing"
 
-    /// <summary>
-    /// Manual review status
-    /// </summary>
-    public string ReviewStatus { get; set; } // "NotReviewed", "Approved", "Rejected", "NeedsRework"
-
-    /// <summary>
-    /// Reviewer feedback
-    /// </summary>
-    public string ReviewNotes { get; set; }
-
     public DateTime CreatedAt { get; set; }
-    public DateTime? ReviewedAt { get; set; }
 }

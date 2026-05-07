@@ -75,6 +75,12 @@ public class EvaluationMetricsService
 
             evaluationRun.Status = "Completed";
             evaluationRun.CompletedAt = DateTime.UtcNow;
+            evaluationRun.NotesJson = JsonSerializer.Serialize(new
+            {
+                ThemeCount = themes.Count,
+                ActionRecommendationCount = actionRecommendations.Count,
+                ClusterCount = clusters.Count
+            });
 
             _dbContext.EvaluationRuns.Add(evaluationRun);
             await _dbContext.SaveChangesAsync();
@@ -110,7 +116,8 @@ public class EvaluationMetricsService
                 MetRelevanceThreshold = theme.RelevanceScore >= RelevanceThreshold,
                 EstimatedAffectedCustomers = theme.FeedbackCount,
                 FeedbackPercentage = theme.FeedbackCount > 0 ? (theme.FeedbackCount / (double)themes.Sum(t => t.FeedbackCount)) * 100 : 0,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Trend = "Stable", // Placeholder - would calculate based on historical data
             };
 
             if (themeEvaluation.MetRelevanceThreshold)
@@ -150,7 +157,9 @@ public class EvaluationMetricsService
                 UsefulnessScore = usefulnessScore,
                 MetUsefulnessThreshold = usefulnessScore >= UsefulnessThreshold,
                 FeasibilityScore = CalculateFeasibility(recommendation),
-                CreatedAt = DateTime.UtcNow
+                CreatedOn = DateTime.UtcNow,
+                ExpectedImpact = recommendation.ImpactScore >= 4 ? "High" : (recommendation.ImpactScore >= 2 ? "Medium" : "Low"),
+                EstimatedTimelineDays = recommendation.EstimatedEffort * 7
             };
 
             if (areEvaluation.MetUsefulnessThreshold)

@@ -27,13 +27,10 @@ public class EmbeddingService
     public async Task<Dictionary<string, float[]>> GenerateEmbeddingsBatchAsync(List<string> texts)
     {
         if (texts == null || texts.Count == 0)
-            throw new ArgumentException("Texts list cannot be empty", nameof(texts));
-
-     
+            throw new ArgumentException("Texts list cannot be empty", nameof(texts));     
 
         var result = new Dictionary<string, float[]>();
         var client = _client.GetEmbeddingClient(EmbeddingModel);
-        var embeddingResult = await client.GenerateEmbeddingAsync(texts[0]);
 
         // Process in batches to avoid rate limiting
         const int batchSize = 25;

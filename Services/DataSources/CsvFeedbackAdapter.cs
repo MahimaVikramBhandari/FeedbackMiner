@@ -57,16 +57,8 @@ public class CsvFeedbackAdapter : IFeedbackSourceAdapter
                         Source = "CSV Import",
                         Text = record.Text ?? record.Feedback ?? "",
                         ProcessedText = record.Text ?? record.Feedback ?? "",
-                        Rating = ParseInt(record.Rating),
-                        ProductArea = record.ProductArea ?? "General",
-                        Category = record.Category ?? "Feedback",
-                        CustomerSegment = record.CustomerSegment ?? "Unknown",
                         Language = "en",
-                        CreatedAt = createdDate,
-                        MetadataJson = System.Text.Json.JsonSerializer.Serialize(new
-                        {
-                            original_fields = record
-                        })
+                        CreatedOn = createdDate
                     };
 
                     feedbackItems.Add(item);

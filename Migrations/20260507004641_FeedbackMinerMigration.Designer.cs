@@ -11,15 +11,15 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FeedbackMiner.Migrations
 {
     [DbContext(typeof(FeedbackDbContext))]
-    [Migration("20260506123240_FixProcessingRunErrorMessageDefault")]
-    partial class FixProcessingRunErrorMessageDefault
+    [Migration("20260507004641_FeedbackMinerMigration")]
+    partial class FeedbackMinerMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.25")
+                .HasAnnotation("ProductVersion", "10.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -31,10 +31,6 @@ namespace FeedbackMiner.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("AffectedAreasJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("AssignedTeam")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -60,10 +56,6 @@ namespace FeedbackMiner.Migrations
                         .HasColumnType("float");
 
                     b.Property<string>("Priority")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -96,10 +88,7 @@ namespace FeedbackMiner.Migrations
                     b.Property<Guid>("ActionRecommendationId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int?>("ActualEffortSpent")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("EstimatedTimelineDays")
@@ -115,26 +104,8 @@ namespace FeedbackMiner.Migrations
                     b.Property<double>("FeasibilityScore")
                         .HasColumnType("float");
 
-                    b.Property<string>("ImplementationFeedback")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ImplementedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<bool>("MetUsefulnessThreshold")
                         .HasColumnType("bit");
-
-                    b.Property<string>("ReviewNotes")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<double>("UsefulnessScore")
                         .HasColumnType("float");
@@ -176,7 +147,6 @@ namespace FeedbackMiner.Migrations
                         .HasColumnType("float");
 
                     b.Property<string>("ErrorMessage")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("NotesJson")
@@ -212,16 +182,8 @@ namespace FeedbackMiner.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("CustomerSegment")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("EmbeddingJson")
                         .HasColumnType("nvarchar(max)");
@@ -229,19 +191,9 @@ namespace FeedbackMiner.Migrations
                     b.Property<string>("Language")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("MetadataJson")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("ProcessedText")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ProductArea")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("Rating")
-                        .HasColumnType("int");
 
                     b.Property<string>("SentimentLabel")
                         .HasColumnType("nvarchar(max)");
@@ -314,7 +266,6 @@ namespace FeedbackMiner.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ErrorMessage")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("FeedbackItemCount")
@@ -349,6 +300,9 @@ namespace FeedbackMiner.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -360,14 +314,10 @@ namespace FeedbackMiner.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ErrorMessage")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("FeedbackCount")
                         .HasColumnType("int");
-
-                    b.Property<DateTime?>("GeneratedAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<int>("NewThemesCount")
                         .HasColumnType("int");
@@ -375,9 +325,6 @@ namespace FeedbackMiner.Migrations
                     b.Property<string>("RecipientEmailsJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("SentAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -450,6 +397,8 @@ namespace FeedbackMiner.Migrations
 
                     b.HasIndex("Label");
 
+                    b.HasIndex("ProcessingRunId");
+
                     b.ToTable("Themes");
                 });
 
@@ -516,17 +465,6 @@ namespace FeedbackMiner.Migrations
 
                     b.Property<double>("RelevanceScore")
                         .HasColumnType("float");
-
-                    b.Property<string>("ReviewNotes")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReviewStatus")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<Guid>("ThemeId")
                         .HasColumnType("uniqueidentifier");
@@ -600,6 +538,14 @@ namespace FeedbackMiner.Migrations
                     b.Navigation("Theme");
 
                     b.Navigation("ThemeCluster");
+                });
+
+            modelBuilder.Entity("Theme", b =>
+                {
+                    b.HasOne("ProcessingRun", null)
+                        .WithMany()
+                        .HasForeignKey("ProcessingRunId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("ThemeCluster", b =>

@@ -2,23 +2,29 @@
 
 public class FeedbackService
 {
-    private readonly IFeedbackRepository _repo;
-    private readonly TextProcessingPipeline _pipeline;
+    private readonly IFeedbackRepository _feedbackRepository;
+    private readonly TextProcessingPipeline _textProcessingPipeline;
 
     public FeedbackService(IFeedbackRepository repo, TextProcessingPipeline pipeline)
     {
-        _repo = repo;
-        _pipeline = pipeline;
+        _feedbackRepository = repo;
+        _textProcessingPipeline = pipeline;
     }
 
     public async Task IngestAsync(FeedbackItem item)
     {
-        var result = await _pipeline.ProcessAsync(item.Text);
+        var result = await _textProcessingPipeline.ProcessAsync(item.Text);
 
         item.ProcessedText = result.CleanedText;
         item.Language = result.Language;
+        item.CreatedOn = DateTime.UtcNow;
 
-        await _repo.AddAsync(item);
-        await _repo.SaveChangesAsync();
+        await _feedbackRepository.AddAsync(item);
+        await _feedbackRepository.SaveChangesAsync();
+    }
+
+    public async Task<FeedbackItem?> GetFeedbackById(Guid id)
+    {
+        return await _feedbackRepository.GetFeedbackById(id);
     }
 }

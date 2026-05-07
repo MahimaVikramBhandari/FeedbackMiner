@@ -65,7 +65,7 @@ Sample feedback:
 For each recommendation, provide:
 1. A clear, actionable title
 2. Detailed description of the action
-3. Category (Bug Fix, Feature Request, Process Improvement, UX Enhancement, Documentation)
+3. Category (Bug Fix, Feature Request, Process Improvement, UI/UX Enhancement, Documentation)
 4. Priority (Low, Medium, High, Critical)
 5. Estimated effort level (1-5)
 6. Potential impact score (1-5)

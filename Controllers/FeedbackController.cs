@@ -5,11 +5,11 @@ using Newtonsoft.Json;
 [Route("api/feedback")]
 public class FeedbackController : ControllerBase
 {
-    private readonly FeedbackService _service;
+    private readonly FeedbackService _feedbackService;
 
     public FeedbackController(FeedbackService service)
     {
-        _service = service;
+        _feedbackService = service;
     }
 
     [HttpPost]
@@ -19,17 +19,27 @@ public class FeedbackController : ControllerBase
         {
             Id = Guid.NewGuid(),
             Source = request.Source,
-            Text = request.Text,
-            Rating = request.Rating,
-            ProductArea = request.ProductArea,
-            Category = request.Category,
-            CustomerSegment = request.CustomerSegment,
-            CreatedAt = DateTime.UtcNow,
-            MetadataJson = JsonConvert.SerializeObject(request.Metadata)
+            Text = request.Text
         };
 
-        await _service.IngestAsync(item);
+        await _feedbackService.IngestAsync(item);
 
         return Ok();
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<FeedbackItem>> GetFeedback(Guid Id) 
+    {
+        var result = await _feedbackService.GetFeedbackById(Id);
+        if (result == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                error = $"Feedback with id {Id} not found"
+            });
+        }
+
+        return Ok(result);
     }
 }
