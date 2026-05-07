@@ -28,6 +28,6 @@
 
     public Task<List<FeedbackItem>> GetRecentAsync(int take = 100)
     {
-        return _repo.GetRecentAsync(take);
+        return _feedbackRepository.GetRecentAsync(take);
     }
 }

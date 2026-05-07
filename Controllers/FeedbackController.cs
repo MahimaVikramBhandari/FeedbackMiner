@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
+using Newtonsoft.Json; 
 
 [ApiController]
 [Route("api/feedback")]
@@ -10,53 +10,6 @@ public class FeedbackController : ControllerBase
     public FeedbackController(FeedbackService service)
     {
         _feedbackService = service;
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> GetRecent([FromQuery] int take = 100)
-    {
-        try
-        {
-            var items = await _service.GetRecentAsync(Math.Clamp(take, 1, 500));
-
-            var result = items.Select(item => new
-            {
-                item.Id,
-                item.Source,
-                item.Text,
-                item.ProcessedText,
-                item.Rating,
-                item.ProductArea,
-                item.Category,
-                item.CustomerSegment,
-                item.CreatedAt,
-                item.Language,
-                item.MetadataJson,
-                item.SentimentScore,
-                item.SentimentLabel,
-                item.UrgencyScore,
-                item.UrgencyLevel,
-                item.ThemeClusterId,
-                item.ThemeId,
-                item.SimilarityScore
-            }).ToList();
-
-            return Ok(new
-            {
-                success = true,
-                count = result.Count,
-                data = result
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                success = false,
-                error = "Feedback data could not be loaded.",
-                details = ex.InnerException?.Message ?? ex.Message
-            });
-        }
     }
 
     [HttpPost]
@@ -71,45 +24,31 @@ public class FeedbackController : ControllerBase
 
         await _feedbackService.IngestAsync(item);
 
-            return Ok(new
-            {
-                success = true,
-                data = new
-                {
-                    item.Id,
-                    item.Source,
-                    item.Text,
-                    item.ProductArea,
-                    item.Category,
-                    item.CustomerSegment,
-                    item.CreatedAt
-                }
-            });
-        }
-        catch (Exception ex)
+        return Ok(new
         {
-            return StatusCode(500, new
-            {
-                success = false,
-                error = "Feedback could not be saved.",
-                details = ex.InnerException?.Message ?? ex.Message
-            });
-        }
+            success = true,
+            data = item
+        });
     }
 
     [HttpGet]
-    public async Task<ActionResult<FeedbackItem>> GetFeedback(Guid Id) 
+    public async Task<IActionResult> GetFeedback(Guid id)
     {
-        var result = await _feedbackService.GetFeedbackById(Id);
+        var result = await _feedbackService.GetFeedbackById(id);
+
         if (result == null)
         {
             return NotFound(new
             {
                 success = false,
-                error = $"Feedback with id {Id} not found"
+                error = $"Feedback with id {id} not found"
             });
         }
 
-        return Ok(result);
+        return Ok(new
+        {
+            success = true,
+            data = result
+        });
     }
 }
