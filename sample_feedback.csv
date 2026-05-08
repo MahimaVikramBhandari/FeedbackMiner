@@ -1,0 +1,8 @@
+Text,Rating,ProductArea,Category,CustomerSegment,CreatedAt,Source
+"The user interface is intuitive and easy to navigate",5,Dashboard,Usability,Enterprise,2026-05-01,Customer Survey
+"Performance has improved significantly in the latest update",4,API,Performance,Startup,2026-05-02,Support Ticket
+"Need better documentation for the API endpoints",3,API,Documentation,Enterprise,2026-05-03,Feature Request
+"Customer support team was very helpful in solving my issue",5,Support,Quality,SMB,2026-05-04,Customer Feedback
+"The pricing model is not competitive compared to competitors",2,Pricing,Pricing,Enterprise,2026-05-05,Sales Call
+"Mobile app crashes frequently",1,Mobile,Bug,Consumer,2026-05-06,App Review
+"Would like to see better integration with third-party tools",3,Integration,Feature,Enterprise,2026-05-07,Feature Request

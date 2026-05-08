@@ -1,0 +1,268 @@
+<div class="page-shell">
+
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Overview</p>
+      <h1>Dashboard</h1>
+    </div>
+
+    <button mat-stroked-button type="button" (click)="loadDashboardData()">
+      <mat-icon>refresh</mat-icon>
+      Refresh
+    </button>
+  </div>
+
+  <!-- LOADING -->
+  @if (loading) {
+    <div class="state-panel">
+      <mat-spinner diameter="42"></mat-spinner>
+      <p>Loading dashboard data...</p>
+    </div>
+  }
+
+  <!-- ERROR -->
+  @else if (error) {
+    <mat-card class="state-card error-card">
+      <mat-card-content>
+        <p>{{ error }}</p>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          (click)="loadDashboardData()">
+          Retry
+        </button>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <!-- MAIN CONTENT -->
+  @else {
+
+    <!-- METRICS -->
+    <div class="metrics-grid">
+
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <span>Weekly Feedback</span>
+          <strong>{{ digest?.totalFeedbackReceived ?? totalFeedback }}</strong>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <span>Themes</span>
+          <strong>{{ themes?.length || 0 }}</strong>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <span>Avg Sentiment</span>
+          <strong>{{ ((averageSentiment || 0) * 100) | number:'1.0-0' }}%</strong>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card warning">
+        <mat-card-content>
+          <span>Critical Items</span>
+          <strong>{{ digest?.criticalUrgencyCount ?? highUrgencyCount }}</strong>
+        </mat-card-content>
+      </mat-card>
+
+    </div>
+
+    <div class="workspace-grid">
+      <div class="workspace-main">
+    <!-- GRID -->
+    <div class="content-grid">
+
+      <!-- SENTIMENT -->
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Sentiment</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content class="sentiment-list">
+          <div><span class="dot positive"></span>Positive <strong>{{ positiveFeedback }}</strong></div>
+          <div><span class="dot neutral"></span>Neutral <strong>{{ neutralFeedback }}</strong></div>
+          <div><span class="dot negative"></span>Negative <strong>{{ negativeFeedback }}</strong></div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- THEMES -->
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Top Themes by Impact</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+
+      @if (themes.length > 0) {
+            <div class="theme-list">
+
+              @for (theme of themes.slice(0, 5); track theme.id) {
+                <div class="theme-row">
+                  <div>
+                    <strong>{{ theme.label }}</strong>
+                    <span>{{ theme.feedbackCount }} feedback items</span>
+                  </div>
+                  <b>{{ theme.impactScore?.toFixed(1) }}</b>
+                </div>
+              }
+
+            </div>
+          }
+
+          @else {
+            <p class="empty-text">
+              No themes yet. Run the analysis pipeline after adding feedback.
+            </p>
+          }
+
+        </mat-card-content>
+      </mat-card>
+
+    </div>
+
+    <div class="content-grid">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Action Recommendations</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+          @if ((digest?.highPriorityActions ?? []).length > 0) {
+            <div class="theme-list">
+              @for (action of digest!.highPriorityActions.slice(0, 5); track action.id) {
+                <div class="theme-row">
+                  <div>
+                    <strong>{{ action.title }}</strong>
+                    <span>{{ action.category }} · {{ action.priority }} priority</span>
+                  </div>
+                  <b>{{ (action.impactScore ?? 0).toFixed(1) }}</b>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="empty-text">No high-priority actions yet.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Evaluation Targets</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content class="quality-list">
+          <div>
+            <span>Theme relevance</span>
+            <strong>{{ ((latestRun?.averageThemeRelevance ?? 0) || 0).toFixed(1) }} / 5</strong>
+          </div>
+          <div>
+            <span>Duplicate precision</span>
+            <strong>{{ ((latestRun?.duplicateDetectionPrecision ?? 0) || 0).toFixed(2) }}</strong>
+          </div>
+          <div>
+            <span>Action usefulness</span>
+            <strong>{{ ((latestRun?.averageActionUsefulness ?? 0) || 0).toFixed(1) }} / 5</strong>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- FEEDBACK -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Recent Feedback</mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+
+     @if (feedbackItems.length > 0) {
+          <div class="feedback-list">
+
+            @for (item of feedbackItems.slice(0, 10); track item.id) {
+              <div class="feedback-item" [ngClass]="getSentimentClass(item.sentimentLabel)">
+
+                <div class="feedback-header">
+                  <strong>{{ item.source }}</strong>
+                  <span>{{ item.urgencyLevel || 'Normal' }}</span>
+                </div>
+
+                <p>{{ item.text }}</p>
+
+                <div class="feedback-meta">
+                  <span>{{ item.sentimentLabel || 'Unscanned' }}</span>
+                  <span>{{ item.productArea || 'No area' }}</span>
+                  <span>{{ item.createdAt | date:'mediumDate' }}</span>
+                </div>
+
+              </div>
+            }
+
+          </div>
+        }
+
+        @else {
+          <p class="empty-text">No feedback has been ingested yet.</p>
+        }
+
+      </mat-card-content>
+    </mat-card>
+      </div>
+
+      <mat-card class="assistant-card">
+        <mat-card-header>
+          <mat-card-title>Ask Assistant</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+          <div class="quick-prompts">
+            <button mat-stroked-button type="button" (click)="askQuick('What is CSAT/NPS feedback and how do we use it here?')">CSAT/NPS</button>
+            <button mat-stroked-button type="button" (click)="askQuick('Explain evaluation targets and what good scores look like.')">Evaluation Targets</button>
+            <button mat-stroked-button type="button" (click)="askQuick('Which page should I use for theme dashboard and cluster export?')">Where To Go</button>
+          </div>
+
+          <div class="assistant-thread">
+            @for (message of assistantMessages; track $index) {
+              <article class="assistant-message" [class.user]="message.role === 'user'">
+                <span>{{ message.role === 'assistant' ? 'Assistant' : 'You' }}</span>
+                <p>{{ message.text }}</p>
+              </article>
+            }
+          </div>
+
+          @if (assistantError) {
+            <p class="assistant-error">{{ assistantError }}</p>
+          }
+
+          <div class="assistant-input-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Ask about themes, reports, evaluation...</mat-label>
+              <textarea
+                matInput
+                rows="3"
+                [(ngModel)]="assistantInput"
+                (keydown.enter)="onAssistantEnter($event)"
+              ></textarea>
+            </mat-form-field>
+
+            <button mat-flat-button color="primary" type="button" [disabled]="assistantLoading" (click)="askAssistant()">
+              @if (assistantLoading) {
+                <mat-spinner diameter="16"></mat-spinner>
+              } @else {
+                <mat-icon>send</mat-icon>
+              }
+              Ask
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+  }
+
+</div>

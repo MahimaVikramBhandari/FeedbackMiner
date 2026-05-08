@@ -1,0 +1,88 @@
+<mat-sidenav-container class="sidenav-container">
+
+  <!-- SIDENAV -->
+  <mat-sidenav
+    #drawer
+    class="sidenav"
+    [mode]="(isHandset$ | async)?.matches ? 'over' : 'side'"
+    [opened]="!(isHandset$ | async)?.matches">
+
+    <div class="logo">
+      <mat-icon>insights</mat-icon>
+      <span>FeedbackMiner</span>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <mat-nav-list>
+
+      <h3 matSubheader>Main</h3>
+
+      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>dashboard</mat-icon>
+        <span>Dashboard</span>
+      </a>
+
+      <a mat-list-item routerLink="/feedback" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>rate_review</mat-icon>
+        <span>Feedback</span>
+      </a>
+
+      <h3 matSubheader>Analysis</h3>
+
+      <a mat-list-item routerLink="/themes" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>category</mat-icon>
+        <span>Themes</span>
+      </a>
+
+      <a mat-list-item routerLink="/reports" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>analytics</mat-icon>
+        <span>Reports</span>
+      </a>
+
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <!-- MAIN CONTENT -->
+  <mat-sidenav-content>
+
+    <!-- TOOLBAR -->
+    <mat-toolbar color="primary" class="toolbar">
+
+      <div class="toolbar-left">
+
+        <!-- MOBILE MENU BUTTON -->
+        <button
+          mat-icon-button
+          type="button"
+          (click)="drawer.toggle()"
+          *ngIf="(isHandset$ | async)?.matches">
+
+          <mat-icon>menu</mat-icon>
+        </button>
+
+        <span class="title">FeedbackMiner</span>
+
+      </div>
+
+      <span class="spacer"></span>
+
+      <button mat-icon-button type="button">
+        <mat-icon>account_circle</mat-icon>
+      </button>
+
+    </mat-toolbar>
+
+    <!-- PAGE CONTENT -->
+    <main class="content">
+      <router-outlet></router-outlet>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <span>2026 FeedbackMiner</span>
+    </footer>
+
+  </mat-sidenav-content>
+
+</mat-sidenav-container>

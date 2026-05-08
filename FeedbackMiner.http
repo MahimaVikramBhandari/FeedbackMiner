@@ -3,4 +3,36 @@
 GET {{FeedbackMiner_HostAddress}}/weatherforecast/
 Accept: application/json
 
+### Summarize (predefined + free-form fallback)
+POST {{FeedbackMiner_HostAddress}}/api/summarize/ask
+Content-Type: application/json
+
+{
+  "question": "What is average theme relevance?"
+}
+
+###
+POST {{FeedbackMiner_HostAddress}}/api/summarize/ask
+Content-Type: application/json
+
+{
+  "question": "Summarize weekly digest report"
+}
+
+### Summarize (free-form question about FeedbackMiner - falls back to GPT)
+POST {{FeedbackMiner_HostAddress}}/api/summarize/ask
+Content-Type: application/json
+
+{
+  "question": "How does FeedbackMiner cluster similar feedback items using embeddings?"
+}
+
+### Summarize (out-of-scope question - assistant should refuse)
+POST {{FeedbackMiner_HostAddress}}/api/summarize/ask
+Content-Type: application/json
+
+{
+  "question": "What's the weather in Bangalore today?"
+}
+
 ###
