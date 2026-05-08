@@ -6,10 +6,12 @@ using Newtonsoft.Json;
 public class FeedbackController : ControllerBase
 {
     private readonly FeedbackService _feedbackService;
+    private readonly FeedbackDbContext _dbContext;
 
-    public FeedbackController(FeedbackService service)
+    public FeedbackController(FeedbackService service, FeedbackDbContext dbContext)
     {
         _feedbackService = service;
+        _dbContext = dbContext;
     }
 
     [HttpPost]
@@ -32,6 +34,35 @@ public class FeedbackController : ControllerBase
     }
 
     [HttpGet]
+    public IActionResult GetFeedbackList([FromQuery] int take = 100)
+    {
+        var items = _dbContext.FeedbackItems
+            .OrderByDescending(f => f.CreatedOn)
+            .Take(Math.Clamp(take, 1, 500))
+            .Select(f => new FeedbackSummaryDto
+            {
+                Id = f.Id,
+                Text = f.Text,
+                ProcessedText = f.ProcessedText ?? f.Text,
+                Source = f.Source,
+                Language = f.Language,
+                SentimentScore = f.SentimentScore,
+                SentimentLabel = f.SentimentLabel,
+                UrgencyScore = f.UrgencyScore,
+                UrgencyLevel = f.UrgencyLevel,
+                CreatedAt = f.CreatedOn
+            })
+            .ToList();
+
+        return Ok(new
+        {
+            success = true,
+            count = items.Count,
+            data = items
+        });
+    }
+
+    [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetFeedback(Guid id)
     {
         var result = await _feedbackService.GetFeedbackById(id);

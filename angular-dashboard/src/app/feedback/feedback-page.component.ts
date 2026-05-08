@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -8,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { fromEvent, timer } from 'rxjs';
 import { FeedbackItem, FeedbackService } from '../services/feedback';
 
 @Component({
@@ -29,6 +31,7 @@ import { FeedbackItem, FeedbackService } from '../services/feedback';
 })
 export class FeedbackPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   feedbackItems: FeedbackItem[] = [];
   loading = false;
@@ -38,20 +41,20 @@ export class FeedbackPageComponent implements OnInit {
   form = this.fb.group({
     source: ['manual', Validators.required],
     text: ['', [Validators.required, Validators.minLength(8)]],
-    rating: [null as number | null],
-    productArea: ['Product', Validators.required],
-    category: ['General', Validators.required],
-    customerSegment: ['All customers', Validators.required],
   });
 
   constructor(private feedbackService: FeedbackService) {}
 
   ngOnInit() {
     this.loadFeedback();
+    this.startAutoRefresh();
   }
 
-  loadFeedback() {
-    this.loading = true;
+  loadFeedback(showLoading = true) {
+    if (showLoading) {
+      this.loading = true;
+    }
+
     this.error = null;
 
     this.feedbackService.getFeedback(100).subscribe({
@@ -64,6 +67,10 @@ export class FeedbackPageComponent implements OnInit {
         this.loading = false;
       },
     });
+  }
+
+  refreshLatest() {
+    this.loadFeedback(false);
   }
 
   submit() {
@@ -80,11 +87,6 @@ export class FeedbackPageComponent implements OnInit {
     const request = {
       source: v.source ?? 'manual',
       text: v.text ?? '',
-      rating: v.rating ?? null,
-      productArea: v.productArea ?? 'Product',
-      category: v.category ?? 'General',
-      customerSegment: v.customerSegment ?? 'All customers',
-      metadata: {},
     };
 
     this.feedbackService.createFeedback(request).subscribe({
@@ -93,10 +95,6 @@ export class FeedbackPageComponent implements OnInit {
         this.form.reset({
           source: 'manual',
           text: '',
-          rating: null,
-          productArea: 'Product',
-          category: 'General',
-          customerSegment: 'All customers',
         });
 
         this.loadFeedback();
@@ -112,5 +110,17 @@ export class FeedbackPageComponent implements OnInit {
     return error.status === 0
       ? 'Backend is not reachable. Start API using dotnet run.'
       : error.error?.error ?? error.message ?? 'Feedback request failed.';
+  }
+
+  private startAutoRefresh() {
+    // Keep latest feedback list fresh while user stays on this page.
+    timer(8000, 8000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.refreshLatest());
+
+    // Refresh when app window regains focus.
+    fromEvent(window, 'focus')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.refreshLatest());
   }
 }

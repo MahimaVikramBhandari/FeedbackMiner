@@ -63,6 +63,17 @@
           <mat-card-content>
             <p>{{ theme.description || 'No description yet.' }}</p>
 
+            @if ((theme.affectedAreas ?? []).length > 0 || (theme.affectedSegments ?? []).length > 0) {
+              <div class="tag-list">
+                @for (area of theme.affectedAreas ?? []; track area) {
+                  <span>{{ area }}</span>
+                }
+                @for (segment of theme.affectedSegments ?? []; track segment) {
+                  <span>{{ segment }}</span>
+                }
+              </div>
+            }
+
             <div class="score-grid">
               <div>
                 <span>Impact</span>
@@ -84,6 +95,17 @@
                 <strong>{{ (theme.averageSentimentScore ?? 0).toFixed(1) }}</strong>
               </div>
             </div>
+
+            @if ((theme.topRecommendations ?? []).length > 0) {
+              <div class="recommendation-list">
+                @for (action of theme.topRecommendations; track action.id) {
+                  <article>
+                    <strong>{{ action.title }}</strong>
+                    <span>{{ action.category }} · {{ action.priority }} · impact {{ (action.impactScore ?? 0).toFixed(1) }}</span>
+                  </article>
+                }
+              </div>
+            }
           </mat-card-content>
         </mat-card>
       }

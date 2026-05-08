@@ -20,6 +20,11 @@
       <mat-card-content>{{ error }}</mat-card-content>
     </mat-card>
   } @else {
+    @if (message) {
+      <mat-card class="success-card">
+        <mat-card-content>{{ message }}</mat-card-content>
+      </mat-card>
+    }
 
     <!-- DIGEST -->
     @if (digest !== null) {
@@ -52,6 +57,13 @@
           </mat-card-content>
         </mat-card>
       </div>
+
+      <div class="report-actions">
+        <button mat-stroked-button type="button" (click)="openWeeklyDigestCsv()">
+          <mat-icon>download</mat-icon>
+          Weekly Digest CSV
+        </button>
+      </div>
     }
 
     <!-- RUNS -->
@@ -79,6 +91,31 @@
                   <span>{{ run.themesExtracted || run.themeCount || 0 }} themes</span>
                 </div>
 
+                <div class="run-actions">
+                  <button mat-stroked-button type="button" [disabled]="evaluatingRunId === runId(run)" (click)="evaluate(run)">
+                    @if (evaluatingRunId === runId(run)) {
+                      <mat-spinner diameter="16"></mat-spinner>
+                    } @else {
+                      <mat-icon>fact_check</mat-icon>
+                    }
+                    Evaluate
+                  </button>
+
+                  <button mat-stroked-button type="button" (click)="openNotebook(run, 'html')">
+                    <mat-icon>article</mat-icon>
+                    Notebook
+                  </button>
+
+                  <button mat-stroked-button type="button" (click)="openClusterExport(run)">
+                    <mat-icon>ios_share</mat-icon>
+                    Clusters
+                  </button>
+
+                  <button mat-icon-button type="button" aria-label="Download notebook JSON" (click)="openNotebook(run, 'json')">
+                    <mat-icon>data_object</mat-icon>
+                  </button>
+                </div>
+
               </div>
             }
 
@@ -87,6 +124,35 @@
           <p class="empty-text">No processing runs yet.</p>
         }
 
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Evaluation History</mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+        @if ((evaluations ?? []).length > 0) {
+          <div class="run-list">
+            @for (evaluation of evaluations; track evaluation.evaluationRunId) {
+              <div class="run-row">
+                <div>
+                  <strong>{{ evaluation.status }}</strong>
+                  <span>{{ evaluation.createdAt | date:'short' }}</span>
+                </div>
+
+                <div class="run-stats">
+                  <span>Theme {{ (evaluation.themeRelevance.score ?? 0).toFixed(1) }}/5</span>
+                  <span>Precision {{ (evaluation.clusteringPrecision ?? 0).toFixed(2) }}</span>
+                  <span>Actions {{ (evaluation.recommendationUsefulness.score ?? 0).toFixed(1) }}/5</span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="empty-text">No evaluations yet.</p>
+        }
       </mat-card-content>
     </mat-card>
 

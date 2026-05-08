@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import {
+  EvaluationHistoryItem,
   FeedbackService,
   ProcessingRun,
   WeeklyDigest
@@ -30,9 +31,12 @@ export class ReportsPageComponent implements OnInit {
 
   digest: WeeklyDigest | null = null;
   runs: ProcessingRun[] = [];
+  evaluations: EvaluationHistoryItem[] = [];
 
   loading = false;
+  evaluatingRunId: string | null = null;
   error: string | null = null;
+  message: string | null = null;
 
   constructor(private feedbackService: FeedbackService) {}
 
@@ -46,11 +50,13 @@ export class ReportsPageComponent implements OnInit {
 
     forkJoin({
       digest: this.feedbackService.getWeeklyDigest(),
-      runs: this.feedbackService.getProcessingRuns()
+      runs: this.feedbackService.getProcessingRuns(),
+      evaluations: this.feedbackService.getEvaluationHistory(10)
     }).subscribe({
-      next: ({ digest, runs }) => {
+      next: ({ digest, runs, evaluations }) => {
         this.digest = digest;
         this.runs = runs ?? [];
+        this.evaluations = evaluations ?? [];
         this.loading = false;
       },
       error: (error) => {
@@ -62,5 +68,64 @@ export class ReportsPageComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  runId(run: ProcessingRun): string {
+    return run.runId ?? run.id ?? '';
+  }
+
+  evaluate(run: ProcessingRun): void {
+    const processingRunId = this.runId(run);
+
+    if (!processingRunId) {
+      this.error = 'Processing run id is missing.';
+      return;
+    }
+
+    this.evaluatingRunId = processingRunId;
+    this.error = null;
+    this.message = null;
+
+    this.feedbackService.evaluateRun(processingRunId).subscribe({
+      next: () => {
+        this.message = 'Evaluation completed.';
+        this.evaluatingRunId = null;
+        this.loadReports();
+      },
+      error: (error) => {
+        this.error = error?.error?.error ?? error?.message ?? 'Evaluation failed.';
+        this.evaluatingRunId = null;
+      }
+    });
+  }
+
+  openWeeklyDigestCsv(): void {
+    window.open(this.feedbackService.getWeeklyDigestCsvUrl(), '_blank');
+  }
+
+  openNotebook(run: ProcessingRun, format: 'html' | 'json'): void {
+    const processingRunId = this.runId(run);
+
+    if (!processingRunId) {
+      this.error = 'Processing run id is missing.';
+      return;
+    }
+
+    const url = format === 'html'
+      ? this.feedbackService.getNotebookHtmlUrl(processingRunId)
+      : this.feedbackService.getNotebookJsonUrl(processingRunId);
+
+    window.open(url, '_blank');
+  }
+
+  openClusterExport(run: ProcessingRun): void {
+    const processingRunId = this.runId(run);
+
+    if (!processingRunId) {
+      this.error = 'Processing run id is missing.';
+      return;
+    }
+
+    window.open(this.feedbackService.getClusterExportUrl(processingRunId), '_blank');
   }
 }

@@ -99,7 +99,9 @@ public class ReportingService
             TotalFeedbackReceived = weeklyFeedback.Count,
             NewThemesIdentified = newThemes.Count,
             ActiveThemes = _dbContext.Themes.Count(),
-            AverageSentiment = weeklyFeedback.Average(f => f.SentimentScore ?? 0),
+            AverageSentiment = weeklyFeedback.Count == 0
+                ? 0
+                : weeklyFeedback.Average(f => f.SentimentScore ?? 0),
             CriticalUrgencyCount = weeklyFeedback.Count(f => f.UrgencyLevel == "Critical"),
             TopThemesByImpact = topThemesByImpact.Select(t => new ThemeDashboardDto
             {
@@ -128,6 +130,7 @@ public class ReportingService
             FeedbackSourceBreakdown = weeklyFeedback
                 .GroupBy(f => f.Source)
                 .ToDictionary(g => g.Key, g => g.Count()),
+            ProductAreaBreakdown = new Dictionary<string, int>(),
             SentimentBreakdown = new Dictionary<string, int>
             {
                 ["Positive"] = weeklyFeedback.Count(f => f.SentimentLabel == "Positive"),

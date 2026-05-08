@@ -54,7 +54,9 @@ public class FeedbackSummaryDto
 {
     public Guid Id { get; set; }
     public string Text { get; set; }
+    public string? ProcessedText { get; set; }
     public string Source { get; set; }
+    public string? Language { get; set; }
     public int? Rating { get; set; }
     public double? SentimentScore { get; set; }
     public string SentimentLabel { get; set; }

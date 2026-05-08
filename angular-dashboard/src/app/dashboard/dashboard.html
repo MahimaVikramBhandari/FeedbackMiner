@@ -45,8 +45,8 @@
 
       <mat-card class="metric-card">
         <mat-card-content>
-          <span>Total Feedback</span>
-          <strong>{{ totalFeedback }}</strong>
+          <span>Weekly Feedback</span>
+          <strong>{{ digest?.totalFeedbackReceived ?? totalFeedback }}</strong>
         </mat-card-content>
       </mat-card>
 
@@ -66,13 +66,15 @@
 
       <mat-card class="metric-card warning">
         <mat-card-content>
-          <span>High Priority</span>
-          <strong>{{ highUrgencyCount }}</strong>
+          <span>Critical Items</span>
+          <strong>{{ digest?.criticalUrgencyCount ?? highUrgencyCount }}</strong>
         </mat-card-content>
       </mat-card>
 
     </div>
 
+    <div class="workspace-grid">
+      <div class="workspace-main">
     <!-- GRID -->
     <div class="content-grid">
 
@@ -92,7 +94,7 @@
       <!-- THEMES -->
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Top Themes</mat-card-title>
+          <mat-card-title>Top Themes by Impact</mat-card-title>
         </mat-card-header>
 
         <mat-card-content>
@@ -122,6 +124,53 @@
         </mat-card-content>
       </mat-card>
 
+    </div>
+
+    <div class="content-grid">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Action Recommendations</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+          @if ((digest?.highPriorityActions ?? []).length > 0) {
+            <div class="theme-list">
+              @for (action of digest!.highPriorityActions.slice(0, 5); track action.id) {
+                <div class="theme-row">
+                  <div>
+                    <strong>{{ action.title }}</strong>
+                    <span>{{ action.category }} · {{ action.priority }} priority</span>
+                  </div>
+                  <b>{{ (action.impactScore ?? 0).toFixed(1) }}</b>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="empty-text">No high-priority actions yet.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Evaluation Targets</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content class="quality-list">
+          <div>
+            <span>Theme relevance</span>
+            <strong>{{ ((latestRun?.averageThemeRelevance ?? 0) || 0).toFixed(1) }} / 5</strong>
+          </div>
+          <div>
+            <span>Duplicate precision</span>
+            <strong>{{ ((latestRun?.duplicateDetectionPrecision ?? 0) || 0).toFixed(2) }}</strong>
+          </div>
+          <div>
+            <span>Action usefulness</span>
+            <strong>{{ ((latestRun?.averageActionUsefulness ?? 0) || 0).toFixed(1) }} / 5</strong>
+          </div>
+        </mat-card-content>
+      </mat-card>
     </div>
 
     <!-- FEEDBACK -->
@@ -163,6 +212,56 @@
 
       </mat-card-content>
     </mat-card>
+      </div>
+
+      <mat-card class="assistant-card">
+        <mat-card-header>
+          <mat-card-title>Ask Assistant</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+          <div class="quick-prompts">
+            <button mat-stroked-button type="button" (click)="askQuick('What is CSAT/NPS feedback and how do we use it here?')">CSAT/NPS</button>
+            <button mat-stroked-button type="button" (click)="askQuick('Explain evaluation targets and what good scores look like.')">Evaluation Targets</button>
+            <button mat-stroked-button type="button" (click)="askQuick('Which page should I use for theme dashboard and cluster export?')">Where To Go</button>
+          </div>
+
+          <div class="assistant-thread">
+            @for (message of assistantMessages; track $index) {
+              <article class="assistant-message" [class.user]="message.role === 'user'">
+                <span>{{ message.role === 'assistant' ? 'Assistant' : 'You' }}</span>
+                <p>{{ message.text }}</p>
+              </article>
+            }
+          </div>
+
+          @if (assistantError) {
+            <p class="assistant-error">{{ assistantError }}</p>
+          }
+
+          <div class="assistant-input-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Ask about themes, reports, evaluation...</mat-label>
+              <textarea
+                matInput
+                rows="3"
+                [(ngModel)]="assistantInput"
+                (keydown.enter)="onAssistantEnter($event)"
+              ></textarea>
+            </mat-form-field>
+
+            <button mat-flat-button color="primary" type="button" [disabled]="assistantLoading" (click)="askAssistant()">
+              @if (assistantLoading) {
+                <mat-spinner diameter="16"></mat-spinner>
+              } @else {
+                <mat-icon>send</mat-icon>
+              }
+              Ask
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
 
   }
 

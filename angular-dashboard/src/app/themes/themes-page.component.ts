@@ -41,7 +41,7 @@ export class ThemesPageComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    this.feedbackService.getThemes(100).subscribe({
+    this.feedbackService.getThemeDashboard(100).subscribe({
       next: (themes) => {
         this.themes = themes ?? [];
         this.loading = false;
@@ -63,8 +63,10 @@ export class ThemesPageComponent implements OnInit {
       processAllFeedback: false,
       clusterSimilarityThreshold: 0.5
     }).subscribe({
-      next: () => {
-        this.pipelineMessage = 'Analysis pipeline completed successfully.';
+      next: (run) => {
+        this.pipelineMessage =
+          `Analysis completed: ${run.feedbackProcessed ?? 0} feedback, ` +
+          `${run.clustersCreated ?? 0} clusters, ${run.themesExtracted ?? 0} themes.`;
         this.running = false;
         this.loadThemes();
       },

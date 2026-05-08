@@ -6,7 +6,9 @@
 
 .page-header,
 .run-row,
-.run-stats {
+.run-stats,
+.run-actions,
+.report-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -68,6 +70,23 @@ h1 {
   }
 }
 
+.run-actions {
+  justify-content: flex-end;
+}
+
+.report-actions {
+  justify-content: flex-start;
+}
+
+.success-card {
+  border-left: 4px solid #079455;
+}
+
+button mat-spinner {
+  display: inline-block;
+  margin-right: 8px;
+}
+
 .state-panel {
   display: grid;
   place-items: center;
@@ -86,7 +105,9 @@ h1 {
 @media (max-width: 960px) {
   .page-header,
   .run-row,
-  .run-stats {
+  .run-stats,
+  .run-actions,
+  .report-actions {
     align-items: flex-start;
     flex-direction: column;
   }
