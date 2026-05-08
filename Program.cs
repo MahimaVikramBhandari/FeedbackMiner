@@ -44,6 +44,7 @@ builder.Services.AddScoped<ReportingService>();
 builder.Services.AddScoped<EvaluationMetricsService>();
 builder.Services.AddScoped<ScheduledDigestService>();
 builder.Services.AddScoped<EvaluationNotebookService>();
+builder.Services.AddScoped<SummarizeService>();
 builder.Services.AddScoped<DataSourceManager>();
 
 // Background Services
