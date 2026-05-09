@@ -44,8 +44,8 @@ public class OpenAIService
             {
                 ChatMessage.CreateSystemMessage(
                     "Redact personally identifiable information from user text. " +
-                    "Replace names with ****, phones with ****, emails with ****, " +
-                    "addresses with ****, and account identifiers with ****. " +
+                    "Replace names with [REDACTED_NAME], phones with [REDACTED_PHONE], emails with [REDACTED_EMAIL], " +
+                    "addresses with [REDACTED_ADDRESS], and account identifiers with [REDACTED_ID]. " +
                     "Return only the redacted text."),
                 ChatMessage.CreateUserMessage(text)
             }
