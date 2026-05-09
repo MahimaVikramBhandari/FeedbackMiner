@@ -51,24 +51,38 @@ public class EmbeddingService
 
     /// <summary>
     /// Calculate cosine similarity between two embeddings
+    /// Handles edge cases: zero norms, identical vectors, near-zero values
     /// </summary>
     public double CalculateSimilarity(float[] embedding1, float[] embedding2)
     {
         if (embedding1.Length != embedding2.Length)
             throw new ArgumentException("Embeddings must have the same length");
 
-        double dotProduct = 0;
-        double norm1 = 0;
-        double norm2 = 0;
-
+        // Edge case: check for zero vectors or very small embeddings
+        double norm1 = 0, norm2 = 0;
         for (int i = 0; i < embedding1.Length; i++)
         {
-            dotProduct += embedding1[i] * embedding2[i];
             norm1 += embedding1[i] * embedding1[i];
             norm2 += embedding2[i] * embedding2[i];
         }
 
-        return dotProduct / (Math.Sqrt(norm1) * Math.Sqrt(norm2));
+        norm1 = Math.Sqrt(norm1);
+        norm2 = Math.Sqrt(norm2);
+
+        // If either vector is zero or very close to zero, return 0 similarity
+        const double epsilon = 1e-10;
+        if (norm1 < epsilon || norm2 < epsilon)
+            return 0.0;
+
+        double dotProduct = 0;
+        for (int i = 0; i < embedding1.Length; i++)
+        {
+            dotProduct += embedding1[i] * embedding2[i];
+        }
+
+        // Clamp result to [-1, 1] to handle numerical precision issues
+        double similarity = dotProduct / (norm1 * norm2);
+        return Math.Clamp(similarity, -1.0, 1.0);
     }
 
     /// <summary>
