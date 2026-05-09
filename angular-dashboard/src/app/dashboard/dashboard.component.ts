@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChartConfiguration, ChartOptions } from 'chart.js';
+import { BaseChartDirective } from 'ng2-charts';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -24,7 +26,8 @@ import { FeedbackService, FeedbackItem, ProcessingRun, Theme, WeeklyDigest } fro
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    BaseChartDirective
   ],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.scss']
@@ -51,12 +54,125 @@ export class DashboardComponent implements OnInit {
   assistantInput = '';
   assistantLoading = false;
   assistantError: string | null = null;
-  assistantMessages: { role: 'assistant' | 'user'; text: string }[] = [
-    {
-      role: 'assistant',
-      text: 'Ask me about themes, clustering, evaluation thresholds, digest/reports, or which page to use.'
-    }
-  ];
+  assistantMessages: { role: 'assistant' | 'user'; text: string }[] = [];
+  sentimentChartData: ChartConfiguration<'pie'>['data'] = {
+    labels: ['Positive', 'Neutral', 'Negative'],
+    datasets: [
+      {
+        data: [0, 0, 0],
+        backgroundColor: ['#079455', '#667085', '#d92d20'],
+        borderColor: '#ffffff',
+        borderWidth: 2,
+      },
+    ],
+  };
+  sentimentChartOptions: ChartOptions<'pie'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => `${context.label}: ${context.parsed}`,
+        },
+      },
+    },
+  };
+  topThemesChartData: ChartConfiguration<'bar'>['data'] = {
+    labels: [],
+    datasets: [
+      {
+        label: 'Impact',
+        data: [],
+        backgroundColor: '#2563eb',
+        borderRadius: 6,
+        barThickness: 16,
+      },
+    ],
+  };
+  topThemesChartOptions: ChartOptions<'bar'> = {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        beginAtZero: true,
+        max: 5,
+        grid: { color: '#eef0f4' },
+      },
+      y: {
+        grid: { display: false },
+        ticks: { autoSkip: false },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+    },
+  };
+  actionImpactChartData: ChartConfiguration<'bar'>['data'] = {
+    labels: [],
+    datasets: [
+      {
+        label: 'Impact',
+        data: [],
+        backgroundColor: '#0f766e',
+        borderRadius: 6,
+        barThickness: 18,
+      },
+    ],
+  };
+  actionImpactChartOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { maxRotation: 0, minRotation: 0 },
+      },
+      y: {
+        beginAtZero: true,
+        max: 5,
+        grid: { color: '#eef0f4' },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+    },
+  };
+  evaluationChartData: ChartConfiguration<'line'>['data'] = {
+    labels: ['Theme', 'Duplicate', 'Action'],
+    datasets: [
+      {
+        label: 'Score',
+        data: [0, 0, 0],
+        borderColor: '#7c3aed',
+        backgroundColor: 'rgba(124, 58, 237, 0.12)',
+        pointBackgroundColor: '#7c3aed',
+        pointRadius: 4,
+        tension: 0.35,
+        fill: true,
+      },
+    ],
+  };
+  evaluationChartOptions: ChartOptions<'line'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        grid: { display: false },
+      },
+      y: {
+        beginAtZero: true,
+        max: 5,
+        grid: { color: '#eef0f4' },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+    },
+  };
 
   constructor(private feedbackService: FeedbackService) {}
 
@@ -110,6 +226,16 @@ export class DashboardComponent implements OnInit {
       f => this.normalize(f.sentimentLabel) === 'neutral'
     ).length;
 
+    this.sentimentChartData = {
+      ...this.sentimentChartData,
+      datasets: [
+        {
+          ...this.sentimentChartData.datasets[0],
+          data: [this.positiveFeedback, this.neutralFeedback, this.negativeFeedback],
+        },
+      ],
+    };
+
     this.highUrgencyCount = items.filter(
       f => ['high', 'critical'].includes(this.normalize(f.urgencyLevel))
     ).length;
@@ -123,6 +249,8 @@ export class DashboardComponent implements OnInit {
       : scoredItems.length
       ? scoredItems.reduce((sum, f) => sum + (f.sentimentScore ?? 0), 0) / scoredItems.length
       : 0;
+
+    this.updateDashboardCharts();
   }
 
   getErrorMessage(error: any): string {
@@ -141,6 +269,39 @@ export class DashboardComponent implements OnInit {
     return `sentiment-${this.normalize(sentiment) || 'unknown'}`;
   }
 
+  hasSentimentData(): boolean {
+    return this.positiveFeedback + this.neutralFeedback + this.negativeFeedback > 0;
+  }
+
+  hasTopThemeChartData(): boolean {
+    return this.themes.some(theme => (theme.impactScore ?? 0) > 0);
+  }
+
+  hasActionChartData(): boolean {
+    return (this.digest?.highPriorityActions ?? []).some(action => (action.impactScore ?? 0) > 0);
+  }
+
+  hasEvaluationChartData(): boolean {
+    return this.getEvaluationScores().some(score => score > 0);
+  }
+
+  getDashboardFeedbackText(item: FeedbackItem): string {
+    return this.toStarMaskedText(item.processedText || item.text);
+  }
+
+  getDashboardSource(source: string | undefined): string {
+    return this.toStarMaskedText(source);
+  }
+
+  private toStarMaskedText(value: string | undefined): string {
+    if (!value) {
+      return '';
+    }
+
+    return value
+      .replace(/\[REDACTED_[A-Z_]+\]/g, '********');
+  }
+
   askAssistant() {
     const question = this.assistantInput.trim();
     if (!question || this.assistantLoading) {
@@ -152,13 +313,13 @@ export class DashboardComponent implements OnInit {
     this.assistantMessages.push({ role: 'user', text: question });
     this.assistantInput = '';
 
-    this.feedbackService.askDashboardAssistant(question)
+    this.feedbackService.askSummarize(question)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
           this.assistantMessages.push({
             role: 'assistant',
-            text: response?.answer ?? 'I could not generate an answer right now.'
+            text: response?.summary ?? 'I could not generate a summary right now.'
           });
           this.assistantLoading = false;
         },
@@ -171,15 +332,60 @@ export class DashboardComponent implements OnInit {
 
   askQuick(prompt: string) {
     this.assistantInput = prompt;
-    this.askAssistant();
   }
 
-  onAssistantEnter(event: Event) {
-    const keyEvent = event as KeyboardEvent;
-    if (!keyEvent.shiftKey) {
-      event.preventDefault();
-      this.askAssistant();
-    }
+  private updateDashboardCharts() {
+    const topThemes = this.themes.slice(0, 5);
+    const highPriorityActions = (this.digest?.highPriorityActions ?? []).slice(0, 5);
+    const evaluationScores = this.getEvaluationScores();
+
+    this.topThemesChartData = {
+      ...this.topThemesChartData,
+      labels: topThemes.map(theme => this.shortenLabel(theme.label || 'Theme')),
+      datasets: [
+        {
+          ...this.topThemesChartData.datasets[0],
+          data: topThemes.map(theme => Number((theme.impactScore ?? 0).toFixed(1))),
+        },
+      ],
+    };
+
+    this.actionImpactChartData = {
+      ...this.actionImpactChartData,
+      labels: highPriorityActions.map(action => this.shortenLabel(action.title || 'Action')),
+      datasets: [
+        {
+          ...this.actionImpactChartData.datasets[0],
+          data: highPriorityActions.map(action => Number((action.impactScore ?? 0).toFixed(1))),
+        },
+      ],
+    };
+
+    this.evaluationChartData = {
+      ...this.evaluationChartData,
+      datasets: [
+        {
+          ...this.evaluationChartData.datasets[0],
+          data: evaluationScores,
+        },
+      ],
+    };
+  }
+
+  private getEvaluationScores(): number[] {
+    const themeRelevance = this.latestRun?.averageThemeRelevance ?? 0;
+    const duplicatePrecision = (this.latestRun?.duplicateDetectionPrecision ?? 0) * 5;
+    const actionUsefulness = this.latestRun?.averageActionUsefulness ?? 0;
+
+    return [
+      Number(themeRelevance.toFixed(1)),
+      Number(duplicatePrecision.toFixed(1)),
+      Number(actionUsefulness.toFixed(1)),
+    ];
+  }
+
+  private shortenLabel(value: string): string {
+    return value.length > 18 ? `${value.slice(0, 17)}...` : value;
   }
 
   private normalize(value: string | undefined): string {

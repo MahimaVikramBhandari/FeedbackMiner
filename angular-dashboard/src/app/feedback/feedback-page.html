@@ -64,10 +64,35 @@
     <!-- RIGHT: LIST -->
     <mat-card>
       <mat-card-header>
-        <mat-card-title>Latest Items</mat-card-title>
+        <mat-card-title>Feedback Items</mat-card-title>
       </mat-card-header>
 
       <mat-card-content>
+        <div class="review-controls">
+          <mat-form-field appearance="outline">
+            <mat-label>Sort</mat-label>
+            <mat-select [(value)]="sortMode">
+              <mat-option value="newest">Newest first</mat-option>
+              <mat-option value="oldest">Oldest first</mat-option>
+              <mat-option value="positive">Positive first</mat-option>
+              <mat-option value="negative">Negative first</mat-option>
+              <mat-option value="critical">Critical first</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Sentiment</mat-label>
+            <mat-select [(value)]="sentimentFilter">
+              <mat-option value="all">All sentiment</mat-option>
+              <mat-option value="positive">Positive only</mat-option>
+              <mat-option value="neutral">Neutral only</mat-option>
+              <mat-option value="negative">Negative only</mat-option>
+              <mat-option value="unscanned">Unscanned only</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <span class="result-count">{{ visibleFeedbackCount }} shown</span>
+        </div>
 
         <!-- LOADING -->
         @if (loading) {
@@ -77,10 +102,10 @@
         }
 
         <!-- DATA LIST -->
-        @else if (feedbackItems.length > 0) {
+        @else if (displayedFeedbackItems.length > 0) {
           <div class="feedback-list">
 
-            @for (item of feedbackItems; track item.id) {
+            @for (item of displayedFeedbackItems; track item.id) {
               <article class="feedback-item">
 
                 <div class="feedback-top">
@@ -107,7 +132,7 @@
         <!-- EMPTY STATE -->
         @else {
           <p class="empty-text">
-            No feedback yet.
+            No feedback matches the current sort and filter.
           </p>
         }
 

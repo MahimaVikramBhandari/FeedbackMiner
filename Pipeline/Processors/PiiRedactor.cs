@@ -22,7 +22,7 @@ public class PiiRedactor : ITextProcessor
 
         text = Regex.Replace(
             text,
-            @"\b(my name is|i am|i'm)\s+([\p{L}]+(?:\s+[\p{L}]+){0,2})\b",
+            @"\b(my name is|name is)\s+([\p{L}]+(?:\s+[\p{L}]+){0,2})\b",
             "$1 [REDACTED_NAME]",
             RegexOptions.IgnoreCase);
 

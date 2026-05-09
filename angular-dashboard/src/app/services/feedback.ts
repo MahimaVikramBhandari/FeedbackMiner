@@ -135,6 +135,12 @@ export interface DashboardAssistantResponse {
   answer: string;
 }
 
+export interface SummaryResponse {
+  success: boolean;
+  summary: string;
+  data?: unknown;
+}
+
 /* =========================
    PIPELINE REQUEST
 ========================= */
@@ -264,6 +270,12 @@ export class FeedbackService {
   askDashboardAssistant(question: string): Observable<DashboardAssistantResponse> {
     return this.http
       .post<ApiResponse<DashboardAssistantResponse>>(`${this.apiUrl}/assistant/dashboard-guide`, { question })
+      .pipe(timeout(this.requestTimeoutMs), map(res => res.data));
+  }
+
+  askSummarize(question: string): Observable<SummaryResponse> {
+    return this.http
+      .post<ApiResponse<SummaryResponse>>(`${this.apiUrl}/summarize/ask`, { question })
       .pipe(timeout(this.requestTimeoutMs), map(res => res.data));
   }
 

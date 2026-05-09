@@ -1,4 +1,4 @@
-$sidenav-width: 240px;
+$sidenav-width: 264px;
 $toolbar-height: 64px;
 
 $primary-bg: #ffffff;
@@ -22,34 +22,53 @@ $bg-page: #f7f8fa;
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 
   min-height: $toolbar-height;
-  padding: 0 18px;
+  padding: 0 20px;
 
   color: #172033;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 750;
 
   mat-icon {
     color: #1976d2;
+    font-size: 28px;
+    height: 28px;
+    width: 28px;
   }
 }
 
 /* NAV LIST */
 mat-nav-list {
   padding: 8px;
+
+  h3[matSubheader] {
+    color: #526070;
+    font-size: 13px;
+    font-weight: 750;
+    letter-spacing: 0;
+    margin: 14px 8px 6px;
+  }
 }
 
 /* NAV ITEM */
 a[mat-list-item] {
   margin: 4px 0;
   border-radius: 8px;
+  cursor: pointer;
+  min-height: 48px;
   transition: background 0.2s ease;
 
   span {
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 650;
+  }
+
+  mat-icon {
+    font-size: 22px;
+    height: 22px;
+    width: 22px;
   }
 
   &:hover {
@@ -80,8 +99,9 @@ a[mat-list-item] {
 }
 
 .title {
-  font-size: 16px;
-  font-weight: 650;
+  color: #172033;
+  font-size: 20px;
+  font-weight: 750;
 }
 
 /* SPACER */
@@ -119,6 +139,6 @@ a[mat-list-item] {
   }
 
   .title {
-    font-size: 15px;
+    font-size: 18px;
   }
 }

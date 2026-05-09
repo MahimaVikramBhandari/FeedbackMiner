@@ -12,6 +12,9 @@ import { MatSelectModule } from '@angular/material/select';
 import { fromEvent, timer } from 'rxjs';
 import { FeedbackItem, FeedbackService } from '../services/feedback';
 
+type FeedbackSortMode = 'newest' | 'oldest' | 'positive' | 'negative' | 'critical';
+type SentimentFilter = 'all' | 'positive' | 'neutral' | 'negative' | 'unscanned';
+
 @Component({
   selector: 'app-feedback-page',
   standalone: true,
@@ -37,6 +40,8 @@ export class FeedbackPageComponent implements OnInit {
   loading = false;
   saving = false;
   error: string | null = null;
+  sortMode: FeedbackSortMode = 'newest';
+  sentimentFilter: SentimentFilter = 'all';
 
   form = this.fb.group({
     source: ['manual', Validators.required],
@@ -71,6 +76,28 @@ export class FeedbackPageComponent implements OnInit {
 
   refreshLatest() {
     this.loadFeedback(false);
+  }
+
+  get displayedFeedbackItems(): FeedbackItem[] {
+    const filtered = this.feedbackItems.filter(item => {
+      if (this.sentimentFilter === 'all') {
+        return true;
+      }
+
+      const sentiment = this.normalize(item.sentimentLabel);
+
+      if (this.sentimentFilter === 'unscanned') {
+        return !sentiment;
+      }
+
+      return sentiment === this.sentimentFilter;
+    });
+
+    return [...filtered].sort((a, b) => this.compareFeedback(a, b));
+  }
+
+  get visibleFeedbackCount(): number {
+    return this.displayedFeedbackItems.length;
   }
 
   submit() {
@@ -110,6 +137,59 @@ export class FeedbackPageComponent implements OnInit {
     return error.status === 0
       ? 'Backend is not reachable. Start API using dotnet run.'
       : error.error?.error ?? error.message ?? 'Feedback request failed.';
+  }
+
+  private compareFeedback(a: FeedbackItem, b: FeedbackItem): number {
+    switch (this.sortMode) {
+      case 'oldest':
+        return this.getCreatedTime(a) - this.getCreatedTime(b);
+      case 'positive':
+        return this.getSentimentRank(b, 'positive') - this.getSentimentRank(a, 'positive')
+          || this.getCreatedTime(b) - this.getCreatedTime(a);
+      case 'negative':
+        return this.getSentimentRank(b, 'negative') - this.getSentimentRank(a, 'negative')
+          || this.getCreatedTime(b) - this.getCreatedTime(a);
+      case 'critical':
+        return this.getUrgencyRank(b) - this.getUrgencyRank(a)
+          || this.getCreatedTime(b) - this.getCreatedTime(a);
+      case 'newest':
+      default:
+        return this.getCreatedTime(b) - this.getCreatedTime(a);
+    }
+  }
+
+  private getCreatedTime(item: FeedbackItem): number {
+    return item.createdAt ? new Date(item.createdAt).getTime() : 0;
+  }
+
+  private getSentimentRank(item: FeedbackItem, sentiment: 'positive' | 'negative'): number {
+    return this.normalize(item.sentimentLabel) === sentiment ? 1 : 0;
+  }
+
+  private getUrgencyRank(item: FeedbackItem): number {
+    const urgency = this.normalize(item.urgencyLevel);
+
+    if (urgency === 'critical') {
+      return 4;
+    }
+
+    if (urgency === 'high') {
+      return 3;
+    }
+
+    if (urgency === 'medium') {
+      return 2;
+    }
+
+    if (urgency === 'low') {
+      return 1;
+    }
+
+    return 0;
+  }
+
+  private normalize(value: string | undefined): string {
+    return value?.toLowerCase() ?? '';
   }
 
   private startAutoRefresh() {
