@@ -340,13 +340,16 @@ public class EvaluationNotebookService
                 }
                 result.AppendLine("</dd>");
             }
-            else if (item.Value is List<object> list)
+            else if (item.Value is System.Collections.IEnumerable enumerable && item.Value is not string)
             {
+                // Handles List<T> even when T is an anonymous type (List<AnonType> will NOT match List<object>).
                 result.AppendLine("<dd><ul>");
-                foreach (var listItem in list)
+
+                foreach (var listItem in enumerable)
                 {
                     result.AppendLine($"<li>{JsonSerializer.Serialize(listItem)}</li>");
                 }
+
                 result.AppendLine("</ul></dd>");
             }
             else if (item.Value is string[] arr)
