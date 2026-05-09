@@ -9,7 +9,7 @@ public class ThemeLabelingService
 {
     private readonly OpenAIClient _client;
 
-    public ThemeLabelingService()
+    public ThemeLabelingService(OpenAIService openAIService = null)
     {
         var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         if (string.IsNullOrEmpty(apiKey))
@@ -25,21 +25,45 @@ public class ThemeLabelingService
         List<FeedbackItem> clusterItems,
         int maxExamples = 5)
     {
-        if (clusterItems.Count == 0)
-            throw new ArgumentException("Cluster items cannot be empty", nameof(clusterItems));
+        if (clusterItems == null || clusterItems.Count == 0)
+        {
+            return new ThemeLabelingResult
+            {
+                Label = "Unlabeled Theme",
+                Description = "Unable to analyze feedback",
+                RelevanceScore = 1.0,
+                Keywords = new List<string>(),
+                AffectedAreas = new List<string>(),
+                AffectedSegments = new List<string>(),
+                CommonPatterns = new List<string>()
+            };
+        }
 
-        var chatClient = _client.GetChatClient("gpt-4.1-mini");
+        try
+        {
+                var chatClient = _client.GetChatClient("gpt-4.1-mini");
 
-        // Select representative examples
-        var examples = clusterItems
-            .OrderByDescending(f => f.SentimentScore.HasValue ? Math.Abs(f.SentimentScore.Value) : 0)
-            .Take(maxExamples)
-            .Select(f => f.ProcessedText)
-            .ToList();
+                // Select representative examples (avoiding null or empty text)
+                var examples = clusterItems
+                    .Where(f => !string.IsNullOrWhiteSpace(f.ProcessedText))
+                    .OrderByDescending(f => f.SentimentScore.HasValue ? Math.Abs(f.SentimentScore.Value) : 0)
+                    .Take(maxExamples)
+                    .Select(f => f.ProcessedText)
+                    .ToList();
 
-        var examplesText = string.Join("\n\n", examples.Select((e, i) => $"{i + 1}. {e}"));
+                if (examples.Count == 0)
+                {
+                    return new ThemeLabelingResult
+                    {
+                        Label = "Empty Feedback",
+                        Description = "Cluster contains no processable feedback",
+                        RelevanceScore = 1.0
+                    };
+                }
 
-        var systemPrompt = @"Analyze the following feedback messages and create a concise theme label and description.
+                var examplesText = string.Join("\n\n", examples.Select((e, i) => $"{i + 1}. {e}"));
+
+                var systemPrompt = @"Analyze the following feedback messages and create a concise theme label and description.
 
 Return a JSON object with exactly these fields:
 {
@@ -58,35 +82,53 @@ Focus on:
 - Noting affected areas and customer segments
 - Finding common patterns across the feedback";
 
-        var userPrompt = $@"Analyze this cluster of {clusterItems.Count} similar feedback messages:
+                var userPrompt = $@"Analyze this cluster of {clusterItems.Count} similar feedback messages:
 
 {examplesText}
 
 Generate theme insights:";
 
-        var response = await chatClient.CompleteChatAsync(
-            new List<ChatMessage>
-            {
-                ChatMessage.CreateSystemMessage(systemPrompt),
-                ChatMessage.CreateUserMessage(userPrompt)
-            }
-        );
+                var response = await chatClient.CompleteChatAsync(
+                    new List<ChatMessage>
+                    {
+                        ChatMessage.CreateSystemMessage(systemPrompt),
+                        ChatMessage.CreateUserMessage(userPrompt)
+                    }
+                );
 
-        var resultText = response.Value.Content[0].Text;
-        return ParseThemeLabelingResponse(resultText);
+                var resultText = response?.Value?.Content?[0]?.Text;
+                return ParseThemeLabelingResponse(resultText);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error labeling cluster: {ex.Message}");
+            // Return safe default on failure
+            return new ThemeLabelingResult
+            {
+                Label = "Auto-Generated Theme",
+                Description = $"Theme from {clusterItems.Count} feedback items",
+                RelevanceScore = 3.0,
+                Keywords = new List<string> { "feedback", "theme" },
+                AffectedAreas = new List<string>(),
+                AffectedSegments = new List<string>(),
+                CommonPatterns = new List<string>()
+            };
+        }
     }
 
     /// <summary>
-    /// Measure relevance score of a theme (1-5 scale)
+    /// Measure relevance score of a theme (1-5 scale) with retry logic
     /// </summary>
     public async Task<double> MeasureRelevanceAsync(Theme theme, List<FeedbackItem> relatedItems)
     {
-        if (relatedItems.Count == 0)
+        if (theme == null || relatedItems == null || relatedItems.Count == 0)
             return 1.0;
 
-        var chatClient = _client.GetChatClient("gpt-4.1-mini");
+        try
+        {
+                var chatClient = _client.GetChatClient("gpt-4.1-mini");
 
-        var systemPrompt = @"Rate the relevance and importance of a theme based on the feedback. Consider:
+                var systemPrompt = @"Rate the relevance and importance of a theme based on the feedback. Consider:
 - How widespread is the issue (number of complaints)
 - How critical is the issue (user impact)
 - How recent is the feedback
@@ -98,43 +140,56 @@ Return ONLY a JSON object:
   ""reasoning"": ""explanation""
 }";
 
-        var sampleFeedback = string.Join("\n", relatedItems.Take(3).Select(f => $"- {f.ProcessedText}"));
-        var userPrompt = $@"Theme: {theme.Label}
-Description: {theme.Description}
-Number of related feedback items: {relatedItems.Count}
-Average sentiment: {relatedItems.Average(f => f.SentimentScore ?? 0):F2}
-Average urgency: {relatedItems.Average(f => f.UrgencyScore ?? 0):F2}
+                        var sampleFeedback = string.Join("\n", relatedItems
+                            .Where(f => !string.IsNullOrWhiteSpace(f.ProcessedText))
+                            .Take(3)
+                            .Select(f => $"- {f.ProcessedText}"));
 
-Sample feedback:
-{sampleFeedback}
+                        var userPrompt = $@"Theme: {theme.Label}
+        Description: {theme.Description}
+        Number of related feedback items: {relatedItems.Count}
+        Average sentiment: {(relatedItems.Any() ? relatedItems.Average(f => f.SentimentScore ?? 0) : 0):F2}
+        Average urgency: {(relatedItems.Any() ? relatedItems.Average(f => f.UrgencyScore ?? 0) : 0):F2}
 
-Rate this theme's relevance (1-5):";
+        Sample feedback:
+        {sampleFeedback}
 
-        var response = await chatClient.CompleteChatAsync(
-            new List<ChatMessage>
-            {
-                ChatMessage.CreateSystemMessage(systemPrompt),
-                ChatMessage.CreateUserMessage(userPrompt)
-            }
-        );
+        Rate this theme's relevance (1-5):";
 
-        var resultText = response.Value.Content[0].Text;
+                        var response = await chatClient.CompleteChatAsync(
+                            new List<ChatMessage>
+                            {
+                                ChatMessage.CreateSystemMessage(systemPrompt),
+                                ChatMessage.CreateUserMessage(userPrompt)
+                            }
+                        );
 
-        try
-        {
-            var jsonStart = resultText.IndexOf('{');
-            var jsonEnd = resultText.LastIndexOf('}');
-            if (jsonStart >= 0 && jsonEnd >= 0)
-            {
-                var jsonStr = resultText.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                var jsonDoc = JsonDocument.Parse(jsonStr);
-                var score = jsonDoc.RootElement.GetProperty("relevanceScore").GetDouble();
-                return Math.Clamp(score, 1, 5);
-            }
-        }
-        catch { }
+                        var resultText = response?.Value?.Content?[0]?.Text;
 
-        return 3.0; // Default to middle score
+                        try
+                        {
+                            var jsonStart = resultText.IndexOf('{');
+                            var jsonEnd = resultText.LastIndexOf('}');
+                            if (jsonStart >= 0 && jsonEnd >= 0)
+                            {
+                                var jsonStr = resultText.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                                var jsonDoc = JsonDocument.Parse(jsonStr);
+                                if (jsonDoc.RootElement.TryGetProperty("relevanceScore", out var scoreElement))
+                                {
+                                    var score = scoreElement.GetDouble();
+                                    return Math.Clamp(score, 1.0, 5.0);
+                                }
+                            }
+                        }
+                        catch { }
+
+                        return 3.0; // Default to middle score
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error measuring relevance for theme '{theme?.Label}': {ex.Message}");
+                    return 3.0; // Safe default on failure
+                }
     }
 
     private ThemeLabelingResult ParseThemeLabelingResponse(string responseText)

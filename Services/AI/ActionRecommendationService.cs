@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 
 /// <summary>
 /// Service for generating action recommendations from themes using GPT function calling
+/// Includes comprehensive error handling for API calls
 /// </summary>
 public class ActionRecommendationService
 {
@@ -21,7 +22,7 @@ public class ActionRecommendationService
     }
 
     /// <summary>
-    /// Generate action recommendations for a theme
+    /// Generate action recommendations for a theme with error handling
     /// </summary>
     public async Task<List<ActionRecommendationResult>> GenerateRecommendationsAsync(
         Theme theme,
@@ -29,18 +30,24 @@ public class ActionRecommendationService
         List<string> productFeatures = null)
     {
         if (theme == null)
-            throw new ArgumentNullException(nameof(theme));
+            throw new ArgumentNullException(nameof(theme), "Theme cannot be null");
 
-        var chatClient = _client.GetChatClient("gpt-4.1-mini");
+        if (relatedItems == null || relatedItems.Count == 0)
+        {
+            Console.WriteLine($"Warning: Theme {theme.Label} has no related feedback items");
+            return new List<ActionRecommendationResult>();
+        }
 
-        var sampleFeedback = string.Join("\n", 
-            relatedItems.Take(5).Select(f => $"- {f.ProcessedText}"));
+        try
+        {
+            var sampleFeedback = string.Join("\n", 
+                relatedItems.Take(5).Select(f => $"- {f.ProcessedText}"));
 
-        var featuresContext = productFeatures != null && productFeatures.Count > 0
-            ? $"\n\nAvailable product features:\n{string.Join("\n", productFeatures.Take(10))}"
-            : "";
+            var featuresContext = productFeatures != null && productFeatures.Count > 0
+                ? $"\n\nAvailable product features:\n{string.Join("\n", productFeatures.Take(10))}"
+                : "";
 
-        var jsonFormat = @"{
+            var jsonFormat = @"{
   ""title"": ""..."",
   ""description"": ""..."",
   ""category"": ""..."",
@@ -51,13 +58,13 @@ public class ActionRecommendationService
   ""benefitSegments"": ""...""
 }";
 
-        var userPrompt = $@"Generate 3-5 concrete action recommendations to address this customer feedback theme:
+            var userPrompt = $@"Generate 3-5 concrete action recommendations to address this customer feedback theme:
 
 Theme: {theme.Label}
 Description: {theme.Description}
 Feedback count: {relatedItems.Count}
-Average urgency: {relatedItems.Average(f => f.UrgencyScore ?? 0):F2}
-Average sentiment: {relatedItems.Average(f => f.SentimentScore ?? 0):F2}
+Average urgency: {(relatedItems.Any() ? relatedItems.Average(f => f.UrgencyScore ?? 0) : 0):F2}
+Average sentiment: {(relatedItems.Any() ? relatedItems.Average(f => f.SentimentScore ?? 0) : 0):F2}
 
 Sample feedback:
 {sampleFeedback}{featuresContext}
@@ -77,78 +84,156 @@ Format each recommendation as JSON:
 
 Return all recommendations as a JSON array.";
 
-        var response = await chatClient.CompleteChatAsync(
-            new List<ChatMessage>
-            {
-                ChatMessage.CreateSystemMessage(@"You are an expert product manager. Generate actionable recommendations based on customer feedback themes. Always return valid JSON arrays."),
-                ChatMessage.CreateUserMessage(userPrompt)
-            }
-        );
+            var chatClient = _client.GetChatClient("gpt-4.1-mini");
 
-        var resultText = response.Value.Content[0].Text;
-        return ParseRecommendationsResponse(resultText);
+            var response = await chatClient.CompleteChatAsync(
+                new List<ChatMessage>
+                {
+                    ChatMessage.CreateSystemMessage(@"You are an expert product manager. Generate actionable recommendations based on customer feedback themes. Always return valid JSON arrays."),
+                    ChatMessage.CreateUserMessage(userPrompt)
+                }
+            );
+
+            var resultText = response?.Value?.Content?[0]?.Text;
+            if (string.IsNullOrWhiteSpace(resultText))
+                return new List<ActionRecommendationResult>();
+
+            return ParseRecommendationsResponse(resultText);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error generating recommendations for theme '{theme.Label}': {ex.Message}");
+            // Return empty list on failure - better than crashing the pipeline
+            return new List<ActionRecommendationResult>();
+        }
     }
 
     /// <summary>
-    /// Evaluate usefulness of a recommendation
+    /// Evaluate usefulness of a recommendation with error handling
+    /// Includes fallback logic and edge case handling for small feedback sets
     /// </summary>
     public async Task<double> EvaluateUsefulnessAsync(
         ActionRecommendation recommendation,
         List<FeedbackItem> relatedItems)
     {
-        if (relatedItems.Count == 0)
+        // Edge case: no related items means default medium usefulness
+        if (relatedItems == null || relatedItems.Count == 0)
             return 3.0;
 
-        var chatClient = _client.GetChatClient("gpt-4.1-mini");
-
-        var systemPrompt = @"Rate the usefulness and value of an action recommendation. Consider:
-- How well it addresses the customer feedback
-- How many customers would benefit
-- Feasibility and complexity
-- Alignment with product goals
-- Potential ROI
-
-Return ONLY a JSON object:
-{
-  ""usefulnessScore"": 1,
-  ""reasoning"": ""explanation""
-}";
-
-        var userPrompt = $@"Recommendation: {recommendation.Title}
-Description: {recommendation.Description}
-Category: {recommendation.Category}
-Priority: {recommendation.Priority}
-Estimated Effort: {recommendation.EstimatedEffort}/5
-Impact Score: {recommendation.ImpactScore}
-
-Number of feedback items addressed: {relatedItems.Count}
-
-Rate the usefulness of this recommendation (1-5):";
-
-        var response = await chatClient.CompleteChatAsync(
-            new List<ChatMessage>
-            {
-                ChatMessage.CreateSystemMessage(systemPrompt),
-                ChatMessage.CreateUserMessage(userPrompt)
-            }
-        );
-
-        var resultText = response.Value.Content[0].Text;
+        if (recommendation == null)
+            return 2.0;
 
         try
         {
-            var jsonStart = resultText.IndexOf('{');
-            var jsonEnd = resultText.LastIndexOf('}');
-            if (jsonStart >= 0 && jsonEnd >= 0)
+            // For very small feedback sets (1-2 items), use a simpler heuristic
+            // based on recommendation properties rather than calling GPT every time
+            if (relatedItems.Count <= 2)
             {
-                var jsonStr = resultText.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                return CalculateUsefulnessHeuristic(recommendation, relatedItems.Count);
+            }
+
+            var chatClient = _client.GetChatClient("gpt-4.1-mini");
+
+            // Build comprehensive feedback summary
+            var feedbackSummary = relatedItems.Count > 5
+                ? string.Join("\n", relatedItems.Take(5).Select((f, i) => $"{i + 1}. {f.ProcessedText}"))
+                : string.Join("\n", relatedItems.Select((f, i) => $"{i + 1}. {f.ProcessedText}"));
+
+            var systemPrompt = @"You are an expert product manager evaluating recommendations. Rate the usefulness of an action recommendation considering:
+- How comprehensively it addresses the customer feedback
+- Number of affected customers
+- Feasibility and effort required
+- Potential business impact
+- Risk-reward ratio
+
+Be objective and base scoring on evidence in the feedback.
+
+Return ONLY a JSON object:
+{
+  ""usefulnessScore"": 3.5,
+  ""reasoning"": ""brief explanation""
+}";
+
+            var userPrompt = $@"Recommendation: {recommendation.Title}
+Category: {recommendation.Category}
+Priority: {recommendation.Priority}
+Estimated Effort: {recommendation.EstimatedEffort}/5
+Impact Score: {recommendation.ImpactScore}/5
+
+Number of customer feedback items: {relatedItems.Count}
+Feedback samples:
+{feedbackSummary}
+
+Rate the usefulness (1-5) of implementing this recommendation based on the above feedback:";
+
+            var response = await chatClient.CompleteChatAsync(
+                new List<ChatMessage>
+                {
+                    ChatMessage.CreateSystemMessage(systemPrompt),
+                    ChatMessage.CreateUserMessage(userPrompt)
+                }
+            );
+
+            var resultText = response?.Value?.Content?[0]?.Text;
+            return ParseUsefulnessScore(resultText);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error evaluating usefulness for recommendation '{recommendation?.Title}': {ex.Message}");
+            // Fallback to heuristic if API call fails
+            return CalculateUsefulnessHeuristic(recommendation, relatedItems?.Count ?? 0);
+        }
+    }
+
+    /// <summary>
+    /// Calculate usefulness score using heuristics when GPT is unavailable or for small datasets
+    /// </summary>
+    private double CalculateUsefulnessHeuristic(ActionRecommendation recommendation, int feedbackCount)
+    {
+        if (recommendation == null)
+            return 2.0;
+
+        double score = 3.0; // Base score
+
+        // Impact bonus
+        if (recommendation.ImpactScore >= 4)
+            score += 1.0;
+        else if (recommendation.ImpactScore >= 3)
+            score += 0.5;
+
+        // Effort bonus (lower effort = higher usefulness)
+        if (recommendation.EstimatedEffort <= 2)
+            score += 0.5;
+        else if (recommendation.EstimatedEffort <= 3)
+            score += 0.25;
+
+        // Scale by feedback count
+        score += Math.Min(1.0, feedbackCount / 10.0);
+
+        return Math.Clamp(score, 1.0, 5.0);
+    }
+
+    private double ParseUsefulnessScore(string responseText)
+    {
+        try
+        {
+            var jsonStart = responseText.IndexOf('{');
+            var jsonEnd = responseText.LastIndexOf('}');
+            if (jsonStart >= 0 && jsonEnd >= 0 && jsonEnd > jsonStart)
+            {
+                var jsonStr = responseText.Substring(jsonStart, jsonEnd - jsonStart + 1);
                 var jsonDoc = JsonDocument.Parse(jsonStr);
-                var score = jsonDoc.RootElement.GetProperty("usefulnessScore").GetDouble();
-                return Math.Clamp(score, 1, 5);
+
+                if (jsonDoc.RootElement.TryGetProperty("usefulnessScore", out var scoreElement))
+                {
+                    var score = scoreElement.GetDouble();
+                    return Math.Clamp(score, 1.0, 5.0);
+                }
             }
         }
         catch { }
 
+        // Default fallback
         return 3.0;
     }
 

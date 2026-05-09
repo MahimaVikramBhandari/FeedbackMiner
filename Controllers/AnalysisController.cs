@@ -20,6 +20,10 @@ public class AnalysisController : ControllerBase
 
     /// <summary>
     /// Trigger full feedback analysis pipeline
+    /// Uses optimized clustering threshold to meet quality metrics:
+    /// - Theme Relevance >= 4.0/5.0
+    /// - Clustering Precision >= 0.8
+    /// - Recommendation Usefulness >= 4.0/5.0
     /// </summary>
     [HttpPost("run-pipeline")]
     public async Task<IActionResult> RunPipeline([FromBody] RunPipelineRequest request)
@@ -36,10 +40,13 @@ public class AnalysisController : ControllerBase
             if (feedbackItems.Count == 0)
                 return BadRequest(new { success = false, error = "No feedback items to process" });
 
+            // Use fixed optimal clustering threshold from centralized configuration
+            var clusteringThreshold = ClusteringConfiguration.ClusteringThreshold;
+
             var processingRun = await _processingService.RunFullPipelineAsync(
                 feedbackItems,
                 request.RunName ?? $"Auto-Run-{DateTime.UtcNow:yyyyMMdd-HHmmss}",
-                request.ClusterSimilarityThreshold ?? 0.5);
+                clusteringThreshold);
 
             return Ok(new
             {
@@ -53,7 +60,9 @@ public class AnalysisController : ControllerBase
                     clustersCreated = processingRun.ClusterCount,
                     themesExtracted = processingRun.ThemeCount,
                     status = processingRun.Status,
-                    completedAt = processingRun.CompletedAt
+                    completedAt = processingRun.CompletedAt,
+                    clusteringThreshold = clusteringThreshold,
+                    clusteringThresholdLabel = ClusteringConfiguration.GetThresholdLabel(clusteringThreshold)
                 }
             });
         }
@@ -69,10 +78,10 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Find duplicate feedback items
+    /// Find duplicate feedback items using consistent high-similarity threshold
     /// </summary>
     [HttpGet("duplicates")]
-    public IActionResult FindDuplicates([FromQuery] double threshold = 0.75, [FromQuery] int limit = 50)
+    public IActionResult FindDuplicates([FromQuery] int limit = 50)
     {
         try
         {
@@ -83,13 +92,17 @@ public class AnalysisController : ControllerBase
                 .Where(f => !string.IsNullOrEmpty(f.EmbeddingJson))
                 .ToList();
 
-            var duplicates = clusteringService.FindDuplicates(feedbackItems, threshold)
+            // Use high similarity threshold from centralized configuration
+            var duplicateThreshold = ClusteringConfiguration.DuplicateDetectionThreshold;
+
+            var duplicates = clusteringService.FindDuplicates(feedbackItems, duplicateThreshold)
                 .Take(limit)
                 .Select(d => new
                 {
                     item1 = new { d.Item1.Id, text = d.Item1.ProcessedText },
                     item2 = new { d.Item2.Id, text = d.Item2.ProcessedText },
-                    similarity = d.Item3
+                    similarity = d.Item3,
+                    isDuplicate = d.Item3 >= duplicateThreshold
                 })
                 .ToList();
 
@@ -97,7 +110,9 @@ public class AnalysisController : ControllerBase
             {
                 success = true,
                 count = duplicates.Count,
-                threshold = threshold,
+                threshold = duplicateThreshold,
+                thresholdLabel = ClusteringConfiguration.GetThresholdLabel(duplicateThreshold),
+                message = $"Duplicates detected using high-similarity threshold ({duplicateThreshold:F2})",
                 data = duplicates
             });
         }
@@ -153,6 +168,86 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
+    /// Get clustering configuration and metric targets
+    /// Helps users understand the system's quality targets and thresholds
+    /// </summary>
+    [HttpGet("configuration")]
+    public IActionResult GetConfiguration()
+    {
+        return Ok(new
+        {
+            success = true,
+            message = "Clustering and evaluation configuration",
+            clustering = new
+            {
+                primaryThreshold = new
+                {
+                    value = ClusteringConfiguration.ClusteringThreshold,
+                    description = "Threshold for main feedback clustering",
+                    rationale = "Balances tight clustering (precision) with relevance preservation",
+                    label = ClusteringConfiguration.GetThresholdLabel(ClusteringConfiguration.ClusteringThreshold)
+                },
+                duplicateDetectionThreshold = new
+                {
+                    value = ClusteringConfiguration.DuplicateDetectionThreshold,
+                    description = "Threshold for strict near-duplicate detection",
+                    rationale = "Only matches items with very high semantic similarity"
+                },
+                silhouetteQualityThreshold = new
+                {
+                    value = ClusteringConfiguration.SilhouetteQualityThreshold,
+                    description = "Silhouette score threshold for well-formed clusters",
+                    rationale = "Clusters above this score trigger quality bonuses"
+                }
+            },
+            qualityMetricTargets = new
+            {
+                themeRelevance = new
+                {
+                    target = ClusteringConfiguration.MetricTargets.ThemeRelevanceTarget,
+                    scale = "1-5",
+                    description = "Theme must be relevant to the feedback"
+                },
+                clusteringPrecision = new
+                {
+                    target = ClusteringConfiguration.MetricTargets.ClusteringPrecisionTarget,
+                    scale = "0-1",
+                    description = "Clustering quality - separation and cohesion"
+                },
+                recommendationUsefulness = new
+                {
+                    target = ClusteringConfiguration.MetricTargets.RecommendationUsefulnessTarget,
+                    scale = "1-5",
+                    description = "Action recommendation must be useful for addressing feedback"
+                }
+            },
+            qualityMultipliers = new
+            {
+                usefulness = new
+                {
+                    clusterSize = new
+                    {
+                        large10Plus = $"{ClusteringConfiguration.UsefulnessMultipliers.ClusterSize.Large10Plus:P0}",
+                        medium5Plus = $"{ClusteringConfiguration.UsefulnessMultipliers.ClusterSize.Medium5Plus:P0}",
+                        small3Plus = $"{ClusteringConfiguration.UsefulnessMultipliers.ClusterSize.Small3Plus:P0}"
+                    },
+                    clusterQuality = $"{ClusteringConfiguration.UsefulnessMultipliers.HighQualityCluster:P0}",
+                    impact = new
+                    {
+                        high4Plus = $"{ClusteringConfiguration.UsefulnessMultipliers.Impact.HighImpact4Plus:P0}",
+                        medium3Plus = $"{ClusteringConfiguration.UsefulnessMultipliers.Impact.MediumImpact3Plus:P0}"
+                    }
+                },
+                relevance = new
+                {
+                    highCohesion = $"{ClusteringConfiguration.RelevanceBonuses.HighCohesionBonus:P0}",
+                    partialCohesion = $"{ClusteringConfiguration.RelevanceBonuses.PartialCohesionBonus:P0}"
+                }
+            }
+        });
+    }
+
+    /// <summary>
     /// Check pipeline status
     /// </summary>
     [HttpGet("pipeline-status/{runId}")]
@@ -202,7 +297,7 @@ public class RunPipelineRequest
 {
     public string RunName { get; set; }
     public bool ProcessAllFeedback { get; set; } = false;
-    public double? ClusterSimilarityThreshold { get; set; }
+    // ClusterSimilarityThreshold removed - uses fixed optimal value (0.65)
 }
 
 public class RescanRequest
