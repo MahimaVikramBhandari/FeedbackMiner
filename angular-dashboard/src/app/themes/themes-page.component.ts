@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { ChartConfiguration, ChartOptions } from 'chart.js';
+import { BaseChartDirective } from 'ng2-charts';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -16,7 +18,8 @@ import { FeedbackService, Theme } from '../services/feedback';
     MatButtonModule,
     MatCardModule,
     MatIconModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    BaseChartDirective
   ],
   templateUrl: './themes-page.html',
   styleUrls: ['./themes-page.scss']
@@ -30,6 +33,44 @@ export class ThemesPageComponent implements OnInit {
 
   error: string | null = null;
   pipelineMessage: string | null = null;
+  summaryLoading = false;
+  summaryError: string | null = null;
+  summaryText: string | null = null;
+  themeChartData: ChartConfiguration<'bar'>['data'] = {
+    labels: [],
+    datasets: [
+      {
+        label: 'Impact',
+        data: [],
+        backgroundColor: '#2563eb',
+        borderRadius: 6,
+      },
+      {
+        label: 'Relevance',
+        data: [],
+        backgroundColor: '#0f766e',
+        borderRadius: 6,
+      }
+    ]
+  };
+  themeChartOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { maxRotation: 0, minRotation: 0 }
+      },
+      y: {
+        beginAtZero: true,
+        max: 5,
+        grid: { color: '#eef0f4' }
+      }
+    },
+    plugins: {
+      legend: { position: 'bottom' }
+    }
+  };
 
   constructor(private feedbackService: FeedbackService) {}
 
@@ -44,6 +85,7 @@ export class ThemesPageComponent implements OnInit {
     this.feedbackService.getThemeDashboard(100).subscribe({
       next: (themes) => {
         this.themes = themes ?? [];
+        this.updateThemeChart();
         this.loading = false;
       },
       error: (error) => {
@@ -51,6 +93,30 @@ export class ThemesPageComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  summarize(prompt: string): void {
+    if (this.summaryLoading) {
+      return;
+    }
+
+    this.summaryLoading = true;
+    this.summaryError = null;
+
+    this.feedbackService.askSummarize(prompt).subscribe({
+      next: (response) => {
+        this.summaryText = response?.summary ?? 'No summary available.';
+        this.summaryLoading = false;
+      },
+      error: (error) => {
+        this.summaryError = this.describeError(error);
+        this.summaryLoading = false;
+      }
+    });
+  }
+
+  hasThemeChartData(): boolean {
+    return this.themes.some(theme => (theme.impactScore ?? 0) > 0 || (theme.relevanceScore ?? 0) > 0);
   }
 
   runPipeline(): void {
@@ -87,5 +153,28 @@ export class ThemesPageComponent implements OnInit {
     }
 
     return error?.error?.error ?? error?.message ?? 'Theme request failed.';
+  }
+
+  private updateThemeChart(): void {
+    const topThemes = this.themes.slice(0, 6);
+
+    this.themeChartData = {
+      ...this.themeChartData,
+      labels: topThemes.map(theme => this.shortenLabel(theme.label || 'Theme')),
+      datasets: [
+        {
+          ...this.themeChartData.datasets[0],
+          data: topThemes.map(theme => Number((theme.impactScore ?? 0).toFixed(1)))
+        },
+        {
+          ...this.themeChartData.datasets[1],
+          data: topThemes.map(theme => Number((theme.relevanceScore ?? 0).toFixed(1)))
+        }
+      ]
+    };
+  }
+
+  private shortenLabel(value: string): string {
+    return value.length > 16 ? `${value.slice(0, 15)}...` : value;
   }
 }

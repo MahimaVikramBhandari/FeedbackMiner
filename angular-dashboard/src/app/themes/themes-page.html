@@ -49,6 +49,63 @@
     </div>
   } @else if ((themes ?? []).length > 0) {
 
+    <div class="insight-grid">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Theme Performance</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+          @if (hasThemeChartData()) {
+            <div class="theme-chart">
+              <canvas
+                baseChart
+                [type]="'bar'"
+                [data]="themeChartData"
+                [options]="themeChartOptions">
+              </canvas>
+            </div>
+          } @else {
+            <p class="empty-text">Theme scores are not available yet.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Summary</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content class="summary-card-content">
+          <div class="summary-actions">
+            <button mat-stroked-button type="button" [disabled]="summaryLoading" (click)="summarize('Summarize cluster report')">
+              Cluster Report
+            </button>
+            <button mat-stroked-button type="button" [disabled]="summaryLoading" (click)="summarize('What is the average theme relevance?')">
+              Theme Relevance
+            </button>
+          </div>
+
+          @if (summaryLoading) {
+            <div class="summary-loading">
+              <mat-spinner diameter="22"></mat-spinner>
+              <span>Generating summary...</span>
+            </div>
+          }
+
+          @if (summaryError) {
+            <p class="summary-error">{{ summaryError }}</p>
+          }
+
+          @if (summaryText) {
+            <p class="summary-text">{{ summaryText }}</p>
+          } @else if (!summaryLoading) {
+            <p class="empty-text">Choose a summary type above.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+    </div>
+
     <!-- THEMES GRID -->
     <div class="theme-grid">
       @for (theme of themes; track theme.id) {

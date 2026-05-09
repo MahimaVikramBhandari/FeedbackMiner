@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { ChartConfiguration, ChartOptions } from 'chart.js';
+import { BaseChartDirective } from 'ng2-charts';
 import { forkJoin } from 'rxjs';
 
 import { MatButtonModule } from '@angular/material/button';
@@ -22,7 +24,8 @@ import {
     MatButtonModule,
     MatCardModule,
     MatIconModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    BaseChartDirective
   ],
   templateUrl: './reports-page.html',
   styleUrls: ['./reports-page.scss']
@@ -37,6 +40,34 @@ export class ReportsPageComponent implements OnInit {
   evaluatingRunId: string | null = null;
   error: string | null = null;
   message: string | null = null;
+  summaryLoading = false;
+  summaryError: string | null = null;
+  summaryText: string | null = null;
+  evaluationTrendData: ChartConfiguration<'line'>['data'] = {
+    labels: [],
+    datasets: [
+      {
+        label: 'Overall quality',
+        data: [],
+        borderColor: '#7c3aed',
+        backgroundColor: 'rgba(124, 58, 237, 0.12)',
+        pointBackgroundColor: '#7c3aed',
+        tension: 0.35,
+        fill: true
+      }
+    ]
+  };
+  evaluationTrendOptions: ChartOptions<'line'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: { grid: { display: false } },
+      y: { beginAtZero: true, max: 5, grid: { color: '#eef0f4' } }
+    },
+    plugins: {
+      legend: { display: false }
+    }
+  };
 
   constructor(private feedbackService: FeedbackService) {}
 
@@ -57,6 +88,7 @@ export class ReportsPageComponent implements OnInit {
         this.digest = digest;
         this.runs = runs ?? [];
         this.evaluations = evaluations ?? [];
+        this.updateReportCharts();
         this.loading = false;
       },
       error: (error) => {
@@ -68,6 +100,30 @@ export class ReportsPageComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  summarize(prompt: string): void {
+    if (this.summaryLoading) {
+      return;
+    }
+
+    this.summaryLoading = true;
+    this.summaryError = null;
+
+    this.feedbackService.askSummarize(prompt).subscribe({
+      next: (response) => {
+        this.summaryText = response?.summary ?? 'No summary available.';
+        this.summaryLoading = false;
+      },
+      error: (error) => {
+        this.summaryError = error?.error?.error ?? error?.message ?? 'Summary failed.';
+        this.summaryLoading = false;
+      }
+    });
+  }
+
+  hasEvaluationTrendData(): boolean {
+    return this.evaluationTrendData.datasets[0].data.some(value => Number(value) > 0);
   }
 
   runId(run: ProcessingRun): string {
@@ -127,5 +183,20 @@ export class ReportsPageComponent implements OnInit {
     }
 
     window.open(this.feedbackService.getClusterExportUrl(processingRunId), '_blank');
+  }
+
+  private updateReportCharts(): void {
+    const latestEvaluations = this.evaluations.slice(0, 6).reverse();
+
+    this.evaluationTrendData = {
+      ...this.evaluationTrendData,
+      labels: latestEvaluations.map(evaluation => new Date(evaluation.createdAt).toLocaleDateString()),
+      datasets: [
+        {
+          ...this.evaluationTrendData.datasets[0],
+          data: latestEvaluations.map(evaluation => Number((evaluation.overallQualityScore ?? 0).toFixed(1)))
+        }
+      ]
+    };
   }
 }

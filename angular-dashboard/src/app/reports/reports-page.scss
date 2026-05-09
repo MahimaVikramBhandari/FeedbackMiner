@@ -78,6 +78,54 @@ h1 {
   justify-content: flex-start;
 }
 
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+
+  mat-card {
+    min-height: 0;
+  }
+}
+
+.report-chart {
+  height: 210px;
+  min-width: 0;
+}
+
+.summary-card-content {
+  display: grid;
+  gap: 12px;
+}
+
+.summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.summary-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #667085;
+  font-size: 13px;
+}
+
+.summary-text {
+  max-height: 186px;
+  margin: 0;
+  color: #344054;
+  line-height: 1.5;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.summary-error {
+  margin: 0;
+  color: #b42318;
+}
+
 .success-card {
   border-left: 4px solid #079455;
 }
@@ -112,7 +160,8 @@ button mat-spinner {
     flex-direction: column;
   }
 
-  .metrics-grid {
+  .metrics-grid,
+  .insight-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -64,6 +64,66 @@
           Weekly Digest CSV
         </button>
       </div>
+
+      <div class="insight-grid">
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Evaluation Trend</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            @if (hasEvaluationTrendData()) {
+              <div class="report-chart">
+                <canvas
+                  baseChart
+                  [type]="'line'"
+                  [data]="evaluationTrendData"
+                  [options]="evaluationTrendOptions">
+                </canvas>
+              </div>
+            } @else {
+              <p class="empty-text">No evaluation trend yet.</p>
+            }
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Summary</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content class="summary-card-content">
+            <div class="summary-actions">
+              <button mat-stroked-button type="button" [disabled]="summaryLoading" (click)="summarize('Summarize weekly digest')">
+                Weekly Digest
+              </button>
+              <button mat-stroked-button type="button" [disabled]="summaryLoading" (click)="summarize('Summarize evaluation history')">
+                Evaluation History
+              </button>
+              <button mat-stroked-button type="button" [disabled]="summaryLoading" (click)="summarize('Summarize feedback reports')">
+                Feedback Reports
+              </button>
+            </div>
+
+            @if (summaryLoading) {
+              <div class="summary-loading">
+                <mat-spinner diameter="22"></mat-spinner>
+                <span>Generating summary...</span>
+              </div>
+            }
+
+            @if (summaryError) {
+              <p class="summary-error">{{ summaryError }}</p>
+            }
+
+            @if (summaryText) {
+              <p class="summary-text">{{ summaryText }}</p>
+            } @else if (!summaryLoading) {
+              <p class="empty-text">Choose a summary type above.</p>
+            }
+          </mat-card-content>
+        </mat-card>
+      </div>
     }
 
     <!-- RUNS -->
