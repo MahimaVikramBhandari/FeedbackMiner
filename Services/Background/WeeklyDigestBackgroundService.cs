@@ -79,12 +79,23 @@ public class WeeklyDigestBackgroundService : BackgroundService
 
     private DateTime CalculateNextRunTime()
     {
-        var today = DateTime.Now.Date;
-        var nextMonday = today.AddDays((DayOfWeek.Monday - today.DayOfWeek + 7) % 7);
+        var now = DateTime.Now;
 
-        if (nextMonday <= today)
-            nextMonday = nextMonday.AddDays(7);
+        // Calculate next Monday
+        int daysUntilMonday =
+            ((int)DayOfWeek.Monday - (int)now.DayOfWeek + 7) % 7;
 
-        return nextMonday.Add(_scheduleTime);
+        var nextRun = now.Date
+            .AddDays(daysUntilMonday)
+            .Add(_scheduleTime);
+
+        // If today's scheduled time already passed,
+        // move to next Monday
+        if (nextRun <= now)
+        {
+            nextRun = nextRun.AddDays(7);
+        }
+
+        return nextRun;
     }
 }
