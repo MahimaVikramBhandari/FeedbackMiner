@@ -8,7 +8,7 @@
 /// </summary>
 public static class ClusteringConfiguration
 {
-    public const double ClusteringThreshold = 0.55;
+    public const double ClusteringThreshold = 0.45;
 
     public const double DuplicateDetectionThreshold = 0.85;
 

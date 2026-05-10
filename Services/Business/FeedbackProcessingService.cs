@@ -131,11 +131,11 @@ public class FeedbackProcessingService
                 // Remove PII placeholder tokens before embedding generation
                 // to improve semantic similarity and clustering quality
                 text = text
-                    .Replace("[REDACTED_EMAIL]", "")
-                    .Replace("[REDACTED_PHONE]", "")
-                    .Replace("[REDACTED_NAME]", "")
-                    .Replace("[REDACTED_CARD]", "")
-                    .Replace("[REDACTED_IP]", "");
+                    .Replace("REDACTED_EMAIL", "")
+                    .Replace("REDACTED_PHONE", "")
+                    .Replace("REDACTED_NAME", "")
+                    .Replace("REDACTED_CARD", "")
+                    .Replace("REDACTED_IP", "");
 
                 // Normalize extra spaces after replacements
                 text = Regex.Replace(text, @"\s{2,}", " ").Trim();
@@ -149,9 +149,18 @@ public class FeedbackProcessingService
 
         var embeddings = await _embeddingService.GenerateEmbeddingsBatchAsync(textsToEmbed);
 
-        foreach (var item in items.Where(i => string.IsNullOrEmpty(i.EmbeddingJson)))
+        foreach (var item in items)
+            //.Where(i => string.IsNullOrEmpty(i.EmbeddingJson)))
         {
             var text = item.ProcessedText ?? item.Text;
+            text = text
+                    .Replace("REDACTED_EMAIL", "")
+                    .Replace("REDACTED_PHONE", "")
+                    .Replace("REDACTED_NAME", "")
+                    .Replace("REDACTED_CARD", "")
+                    .Replace("REDACTED_IP", "");
+            text = Regex.Replace(text, @"\s{2,}", " ").Trim();
+
             if (embeddings.ContainsKey(text))
             {
                 item.EmbeddingJson = _embeddingService.SerializeEmbedding(embeddings[text]);

@@ -12,8 +12,7 @@ public class TextCleaner : ITextProcessor
 
         if (!string.IsNullOrWhiteSpace(cleaned))
         {
-
-            cleaned = Regex.Replace(cleaned, @"[^\p{L}\p{N}\s\.,!\?:;'\-_()/]", " ");
+            cleaned = Regex.Replace(cleaned, @"[^\p{L}\p{M}\p{N}\s\.,!\?:;'\-_()/@]", " ");
             cleaned = Regex.Replace(cleaned, @"\s{2,}", " ").Trim();
         }
 

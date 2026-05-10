@@ -54,9 +54,9 @@ builder.Services.AddHostedService<WeeklyDigestBackgroundService>();
 builder.Services.AddScoped<IFeedbackRepository, FeedbackRepository>();
 
 // Text Processing Pipeline
+builder.Services.AddScoped<ITextProcessor, PiiRedactor>();
 builder.Services.AddScoped<ITextProcessor, TextCleaner>();
 builder.Services.AddScoped<ITextProcessor, LanguageDetector>();
-builder.Services.AddScoped<ITextProcessor, PiiRedactor>();
 builder.Services.AddScoped<TextProcessingPipeline>();
 
 var app = builder.Build();
