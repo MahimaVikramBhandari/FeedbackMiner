@@ -35,18 +35,13 @@ cd FeedbackMiner
 
 2. **Configure environment**
 ```bash
-# Set OpenAI API key
+# Set OpenAI API key in .env file
 $env:OPENAI_API_KEY="your-api-key-here"
 
 # Update appsettings.json with database connection
 ```
 
-3. **Initialize database**
-```bash
-dotnet ef database update
-```
-
-4. **Build and run**
+3. **Build and run**
 ```bash
 dotnet build
 dotnet run
@@ -88,8 +83,7 @@ Execute full feedback analysis pipeline
 Request:
 {
   "processAllFeedback": true,
-  "runName": "Weekly Analysis",
-  "clusterSimilarityThreshold": 0.5
+  "runName": "Weekly Analysis"
 }
 
 Response:
@@ -243,8 +237,7 @@ Key entities:
     "DefaultConnection": "Server=.;Database=FeedbackMiner;Integrated Security=true;"
   },
   "FeedbackMiner": {
-    "DigestScheduleTime": "08:00:00",
-    "ClusteringSimilarityThreshold": 0.5
+    "DigestScheduleTime": "14:15:00",
   },
   "Logging": {
     "LogLevel": {
@@ -254,70 +247,10 @@ Key entities:
 }
 ```
 
-### Environment Variables
-```bash
-OPENAI_API_KEY=sk-...
-```
+## Contributors
+- Mahima Munjal
+- Mahima Vikram Bhandari
+- Supriya Kailas Ghadge
+- Abhipsha Satpathy
+- Satya Prakash Arya
 
----
-
-## Troubleshooting
-
-### Low Quality Metrics
-
-**Theme Relevance < 4.0:**
-- Increase feedback examples in prompts
-- Review theme generation accuracy
-- Check feedback quality/clarity
-
-**Clustering Precision < 0.8:**
-- Reduce similarity threshold (currently 0.5)
-- Increase feedback quantity
-- Verify embedding generation
-
-**Recommendation Usefulness < 4.0:**
-- Improve context in prompts
-- Add product feature details
-- Review recommendations manually
-
----
-
-## Performance
-
-- **Embedding Generation**: ~1s per 25 items (batched)
-- **Full Pipeline**: ~5-10 min for 500 items
-- **Theme Extraction**: ~2s per cluster
-- **Evaluation**: ~30s for typical run
-
----
-
-## Next Steps
-
-1. **Frontend Dashboard**: Angular-based visualization (separate repo)
-2. **Zendesk Integration**: Direct API connection for tickets
-3. **Google Forms**: Native integration for survey responses
-4. **Advanced Analytics**: Trend analysis, predictive models
-5. **Multi-language**: Support for non-English feedback
-
----
-
-## Project Status
-
-✅ **Complete Backend Implementation**
-- Core AI services (embeddings, clustering, labeling, recommendations)
-- Quality metrics evaluation (relevance, precision, usefulness)
-- Evaluation notebooks (JSON & HTML export)
-- Scheduled weekly digest
-- Data source adapters (CSV, JSON)
-- Comprehensive REST API
-- Proper error handling and logging
-
-⏳ **In Progress**
-- Angular dashboard
-- Advanced data source integrations
-
----
-
-## Support
-
-For questions or issues, please refer to the inline documentation or contact the development team.

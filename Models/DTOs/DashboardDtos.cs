@@ -31,7 +31,6 @@ public class ActionRecommendationDto
     public int EstimatedEffort { get; set; }
     public double ImpactScore { get; set; }
     public double? UsefulnessRating { get; set; }
-    public string Status { get; set; }
 }
 
 /// <summary>
@@ -57,14 +56,10 @@ public class FeedbackSummaryDto
     public string? ProcessedText { get; set; }
     public string Source { get; set; }
     public string? Language { get; set; }
-    public int? Rating { get; set; }
     public double? SentimentScore { get; set; }
-    public string SentimentLabel { get; set; }
+    public string? SentimentLabel { get; set; }
     public double? UrgencyScore { get; set; }
-    public string UrgencyLevel { get; set; }
-    public string ProductArea { get; set; }
-    public string Category { get; set; }
-    public string CustomerSegment { get; set; }
+    public string? UrgencyLevel { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 

@@ -1,4 +1,6 @@
-﻿public class FeedbackItem
+﻿using System.Text.Json.Serialization;
+
+public class FeedbackItem
 {
     public Guid Id { get; set; }
 
@@ -16,10 +18,14 @@
 
     // Clustering
     public Guid? ThemeClusterId { get; set; }
+
+    [JsonIgnore]
     public ThemeCluster ThemeCluster { get; set; }
 
     // Theme tracking
     public Guid? ThemeId { get; set; }
+
+    [JsonIgnore]
     public Theme Theme { get; set; }
 
     // Similarity to other items (for duplicate detection)

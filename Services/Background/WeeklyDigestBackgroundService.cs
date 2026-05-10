@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Hosting;
-
 /// <summary>
 /// Background service for automatically generating weekly digests
 /// </summary>

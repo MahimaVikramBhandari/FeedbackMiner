@@ -96,17 +96,6 @@ public class CsvFeedbackAdapter : IFeedbackSourceAdapter
 
         return DateTime.UtcNow;
     }
-
-    private int? ParseInt(string intString)
-    {
-        if (string.IsNullOrEmpty(intString))
-            return null;
-
-        if (int.TryParse(intString, out var value))
-            return value;
-
-        return null;
-    }
 }
 
 /// <summary>
