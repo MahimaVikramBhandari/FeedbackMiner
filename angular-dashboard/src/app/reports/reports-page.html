@@ -5,7 +5,11 @@
       <h1>Reports</h1>
     </div>
 
-    <button mat-stroked-button type="button" (click)="loadReports()">
+    <button
+      mat-stroked-button
+      type="button"
+      matTooltip="Reload digest, runs, and evaluation history"
+      (click)="loadReports()">
       <mat-icon>refresh</mat-icon>
       Refresh
     </button>
@@ -59,7 +63,11 @@
       </div>
 
       <div class="report-actions">
-        <button mat-stroked-button type="button" (click)="openWeeklyDigestCsv()">
+        <button
+          mat-stroked-button
+          type="button"
+          matTooltip="Download the weekly feedback digest as a CSV file"
+          (click)="openWeeklyDigestCsv()">
           <mat-icon>download</mat-icon>
           Weekly Digest CSV
         </button>
@@ -68,21 +76,49 @@
       <div class="insight-grid">
         <mat-card>
           <mat-card-header>
-            <mat-card-title>Evaluation Trend</mat-card-title>
+            <mat-card-title>Quality Gate</mat-card-title>
           </mat-card-header>
 
           <mat-card-content>
-            @if (hasEvaluationTrendData()) {
-              <div class="report-chart">
-                <canvas
-                  baseChart
-                  [type]="'line'"
-                  [data]="evaluationTrendData"
-                  [options]="evaluationTrendOptions">
-                </canvas>
+            @if (hasEvaluationData()) {
+              <div class="quality-gate">
+                <div class="quality-score">
+                  <span>Latest evaluation</span>
+                  <strong>{{ getOverallQualityScore().toFixed(1) }}%</strong>
+                  <small>{{ latestEvaluation()?.createdAt | date:'short' }}</small>
+                </div>
+
+                <div class="quality-checks">
+                  <div class="quality-check" [class.pass]="meetsTarget(getThemeRelevanceScore(), 4)">
+                    <mat-icon>{{ meetsTarget(getThemeRelevanceScore(), 4) ? 'check_circle' : 'error' }}</mat-icon>
+                    <div>
+                      <strong>Theme relevance</strong>
+                      <span>{{ getThemeRelevanceScore().toFixed(1) }} / 5 · Target 4.0</span>
+                    </div>
+                    <b>{{ qualityStatus(getThemeRelevanceScore(), 4) }}</b>
+                  </div>
+
+                  <div class="quality-check" [class.pass]="meetsTarget(getDuplicatePrecisionScore(), 0.8)">
+                    <mat-icon>{{ meetsTarget(getDuplicatePrecisionScore(), 0.8) ? 'check_circle' : 'error' }}</mat-icon>
+                    <div>
+                      <strong>Duplicate precision</strong>
+                      <span>{{ getDuplicatePrecisionScore().toFixed(2) }} · Target 0.80</span>
+                    </div>
+                    <b>{{ qualityStatus(getDuplicatePrecisionScore(), 0.8) }}</b>
+                  </div>
+
+                  <div class="quality-check" [class.pass]="meetsTarget(getRecommendationUsefulnessScore(), 4)">
+                    <mat-icon>{{ meetsTarget(getRecommendationUsefulnessScore(), 4) ? 'check_circle' : 'error' }}</mat-icon>
+                    <div>
+                      <strong>Action recommendation usefulness</strong>
+                      <span>{{ getRecommendationUsefulnessScore().toFixed(1) }} / 5 · Target 4.0</span>
+                    </div>
+                    <b>{{ qualityStatus(getRecommendationUsefulnessScore(), 4) }}</b>
+                  </div>
+                </div>
               </div>
             } @else {
-              <p class="empty-text">No evaluation trend yet.</p>
+              <p class="empty-text">No quality gate results yet.</p>
             }
           </mat-card-content>
         </mat-card>
@@ -94,13 +130,28 @@
 
           <mat-card-content class="summary-card-content">
             <div class="summary-actions">
-              <button mat-stroked-button type="button" [disabled]="summaryLoading" (click)="summarize('Summarize weekly digest')">
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="summaryLoading"
+                matTooltip="Generate a short summary of the weekly digest"
+                (click)="summarize('Summarize weekly digest')">
                 Weekly Digest
               </button>
-              <button mat-stroked-button type="button" [disabled]="summaryLoading" (click)="summarize('Summarize evaluation history')">
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="summaryLoading"
+                matTooltip="Summarize recent evaluation results and quality changes"
+                (click)="summarize('Summarize evaluation history')">
                 Evaluation History
               </button>
-              <button mat-stroked-button type="button" [disabled]="summaryLoading" (click)="summarize('Summarize feedback reports')">
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="summaryLoading"
+                matTooltip="Summarize report-level feedback activity"
+                (click)="summarize('Summarize feedback reports')">
                 Feedback Reports
               </button>
             </div>
@@ -152,7 +203,12 @@
                 </div>
 
                 <div class="run-actions">
-                  <button mat-stroked-button type="button" [disabled]="evaluatingRunId === runId(run)" (click)="evaluate(run)">
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    [disabled]="evaluatingRunId === runId(run)"
+                    matTooltip="Run evaluation metrics for this processing run"
+                    (click)="evaluate(run)">
                     @if (evaluatingRunId === runId(run)) {
                       <mat-spinner diameter="16"></mat-spinner>
                     } @else {
@@ -161,17 +217,30 @@
                     Evaluate
                   </button>
 
-                  <button mat-stroked-button type="button" (click)="openNotebook(run, 'html')">
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    matTooltip="Open the evaluation notebook as HTML"
+                    (click)="openNotebook(run, 'html')">
                     <mat-icon>article</mat-icon>
                     Notebook
                   </button>
 
-                  <button mat-stroked-button type="button" (click)="openClusterExport(run)">
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    matTooltip="Open clustered feedback export for this run"
+                    (click)="openClusterExport(run)">
                     <mat-icon>ios_share</mat-icon>
                     Clusters
                   </button>
 
-                  <button mat-icon-button type="button" aria-label="Download notebook JSON" (click)="openNotebook(run, 'json')">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    aria-label="Download notebook JSON"
+                    matTooltip="Open raw evaluation notebook JSON"
+                    (click)="openNotebook(run, 'json')">
                     <mat-icon>data_object</mat-icon>
                   </button>
                 </div>

@@ -12,7 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { fromEvent, timer } from 'rxjs';
 import { FeedbackItem, FeedbackService } from '../services/feedback';
 
-type FeedbackSortMode = 'newest' | 'oldest' | 'positive' | 'negative' | 'critical';
+type FeedbackSortMode = 'newest' | 'oldest' | 'positive' | 'negative';
 type SentimentFilter = 'all' | 'positive' | 'neutral' | 'negative' | 'unscanned';
 
 @Component({
@@ -149,9 +149,6 @@ export class FeedbackPageComponent implements OnInit {
       case 'negative':
         return this.getSentimentRank(b, 'negative') - this.getSentimentRank(a, 'negative')
           || this.getCreatedTime(b) - this.getCreatedTime(a);
-      case 'critical':
-        return this.getUrgencyRank(b) - this.getUrgencyRank(a)
-          || this.getCreatedTime(b) - this.getCreatedTime(a);
       case 'newest':
       default:
         return this.getCreatedTime(b) - this.getCreatedTime(a);
@@ -164,28 +161,6 @@ export class FeedbackPageComponent implements OnInit {
 
   private getSentimentRank(item: FeedbackItem, sentiment: 'positive' | 'negative'): number {
     return this.normalize(item.sentimentLabel) === sentiment ? 1 : 0;
-  }
-
-  private getUrgencyRank(item: FeedbackItem): number {
-    const urgency = this.normalize(item.urgencyLevel);
-
-    if (urgency === 'critical') {
-      return 4;
-    }
-
-    if (urgency === 'high') {
-      return 3;
-    }
-
-    if (urgency === 'medium') {
-      return 2;
-    }
-
-    if (urgency === 'low') {
-      return 1;
-    }
-
-    return 0;
   }
 
   private normalize(value: string | undefined): string {

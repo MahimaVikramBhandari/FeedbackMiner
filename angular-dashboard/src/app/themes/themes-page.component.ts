@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 
@@ -7,6 +8,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatRadioModule } from '@angular/material/radio';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { FeedbackService, Theme } from '../services/feedback';
 
@@ -15,10 +18,13 @@ import { FeedbackService, Theme } from '../services/feedback';
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     MatButtonModule,
     MatCardModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatRadioModule,
+    MatTooltipModule,
     BaseChartDirective
   ],
   templateUrl: './themes-page.html',
@@ -30,6 +36,7 @@ export class ThemesPageComponent implements OnInit {
 
   loading = false;
   running = false;
+  processAllFeedback = false;
 
   error: string | null = null;
   pipelineMessage: string | null = null;
@@ -126,8 +133,7 @@ export class ThemesPageComponent implements OnInit {
 
     this.feedbackService.runPipeline({
       runName: `Dashboard-${new Date().toISOString()}`,
-      processAllFeedback: false,
-      clusterSimilarityThreshold: 0.5
+      processAllFeedback: this.processAllFeedback,
     }).subscribe({
       next: (run) => {
         this.pipelineMessage =

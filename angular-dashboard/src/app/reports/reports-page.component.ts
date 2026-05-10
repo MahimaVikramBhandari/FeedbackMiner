@@ -1,13 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { ChartConfiguration, ChartOptions } from 'chart.js';
-import { BaseChartDirective } from 'ng2-charts';
 import { forkJoin } from 'rxjs';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import {
   EvaluationHistoryItem,
@@ -25,7 +24,7 @@ import {
     MatCardModule,
     MatIconModule,
     MatProgressSpinnerModule,
-    BaseChartDirective
+    MatTooltipModule
   ],
   templateUrl: './reports-page.html',
   styleUrls: ['./reports-page.scss']
@@ -43,31 +42,6 @@ export class ReportsPageComponent implements OnInit {
   summaryLoading = false;
   summaryError: string | null = null;
   summaryText: string | null = null;
-  evaluationTrendData: ChartConfiguration<'line'>['data'] = {
-    labels: [],
-    datasets: [
-      {
-        label: 'Overall quality',
-        data: [],
-        borderColor: '#7c3aed',
-        backgroundColor: 'rgba(124, 58, 237, 0.12)',
-        pointBackgroundColor: '#7c3aed',
-        tension: 0.35,
-        fill: true
-      }
-    ]
-  };
-  evaluationTrendOptions: ChartOptions<'line'> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: { grid: { display: false } },
-      y: { beginAtZero: true, max: 5, grid: { color: '#eef0f4' } }
-    },
-    plugins: {
-      legend: { display: false }
-    }
-  };
 
   constructor(private feedbackService: FeedbackService) {}
 
@@ -88,7 +62,6 @@ export class ReportsPageComponent implements OnInit {
         this.digest = digest;
         this.runs = runs ?? [];
         this.evaluations = evaluations ?? [];
-        this.updateReportCharts();
         this.loading = false;
       },
       error: (error) => {
@@ -122,8 +95,44 @@ export class ReportsPageComponent implements OnInit {
     });
   }
 
-  hasEvaluationTrendData(): boolean {
-    return this.evaluationTrendData.datasets[0].data.some(value => Number(value) > 0);
+  latestEvaluation(): EvaluationHistoryItem | null {
+    return this.evaluations?.[0] ?? null;
+  }
+
+  hasEvaluationData(): boolean {
+    return this.latestEvaluation() !== null;
+  }
+
+  getThemeRelevanceScore(): number {
+    return this.latestEvaluation()?.themeRelevance.score ?? 0;
+  }
+
+  getDuplicatePrecisionScore(): number {
+    return this.latestEvaluation()?.clusteringPrecision ?? 0;
+  }
+
+  getRecommendationUsefulnessScore(): number {
+    return this.latestEvaluation()?.recommendationUsefulness.score ?? 0;
+  }
+
+  getOverallQualityScore(): number {
+    return this.latestEvaluation()?.overallQualityScore ?? 0;
+  }
+
+  getMetricPercent(value: number, max: number): number {
+    if (max <= 0) {
+      return 0;
+    }
+
+    return Math.min(100, Math.max(0, (value / max) * 100));
+  }
+
+  meetsTarget(value: number, target: number): boolean {
+    return value >= target;
+  }
+
+  qualityStatus(value: number, target: number): string {
+    return this.meetsTarget(value, target) ? 'Pass' : 'Needs work';
   }
 
   runId(run: ProcessingRun): string {
@@ -183,20 +192,5 @@ export class ReportsPageComponent implements OnInit {
     }
 
     window.open(this.feedbackService.getClusterExportUrl(processingRunId), '_blank');
-  }
-
-  private updateReportCharts(): void {
-    const latestEvaluations = this.evaluations.slice(0, 6).reverse();
-
-    this.evaluationTrendData = {
-      ...this.evaluationTrendData,
-      labels: latestEvaluations.map(evaluation => new Date(evaluation.createdAt).toLocaleDateString()),
-      datasets: [
-        {
-          ...this.evaluationTrendData.datasets[0],
-          data: latestEvaluations.map(evaluation => Number((evaluation.overallQualityScore ?? 0).toFixed(1)))
-        }
-      ]
-    };
   }
 }

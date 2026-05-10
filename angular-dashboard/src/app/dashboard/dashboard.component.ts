@@ -12,8 +12,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
-import { FeedbackService, FeedbackItem, ProcessingRun, Theme, WeeklyDigest } from '../services/feedback';
+import { FeedbackService, FeedbackItem, ProcessingRun, Theme, WeeklyDigest, EvaluationHistoryItem } from '../services/feedback';
 
 @Component({
   selector: 'app-dashboard',
@@ -27,6 +28,7 @@ import { FeedbackService, FeedbackItem, ProcessingRun, Theme, WeeklyDigest } fro
     MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
     BaseChartDirective
   ],
   templateUrl: './dashboard.html',
@@ -40,6 +42,7 @@ export class DashboardComponent implements OnInit {
   themes: Theme[] = [];
   digest: WeeklyDigest | null = null;
   latestRun: ProcessingRun | null = null;
+  latestEvaluation: EvaluationHistoryItem | null = null;
 
   loading = true;
   error: string | null = null;
@@ -111,69 +114,6 @@ export class DashboardComponent implements OnInit {
       legend: { display: false },
     },
   };
-  actionImpactChartData: ChartConfiguration<'bar'>['data'] = {
-    labels: [],
-    datasets: [
-      {
-        label: 'Impact',
-        data: [],
-        backgroundColor: '#0f766e',
-        borderRadius: 6,
-        barThickness: 18,
-      },
-    ],
-  };
-  actionImpactChartOptions: ChartOptions<'bar'> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: {
-        grid: { display: false },
-        ticks: { maxRotation: 0, minRotation: 0 },
-      },
-      y: {
-        beginAtZero: true,
-        max: 5,
-        grid: { color: '#eef0f4' },
-      },
-    },
-    plugins: {
-      legend: { display: false },
-    },
-  };
-  evaluationChartData: ChartConfiguration<'line'>['data'] = {
-    labels: ['Theme', 'Duplicate', 'Action'],
-    datasets: [
-      {
-        label: 'Score',
-        data: [0, 0, 0],
-        borderColor: '#7c3aed',
-        backgroundColor: 'rgba(124, 58, 237, 0.12)',
-        pointBackgroundColor: '#7c3aed',
-        pointRadius: 4,
-        tension: 0.35,
-        fill: true,
-      },
-    ],
-  };
-  evaluationChartOptions: ChartOptions<'line'> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: {
-        grid: { display: false },
-      },
-      y: {
-        beginAtZero: true,
-        max: 5,
-        grid: { color: '#eef0f4' },
-      },
-    },
-    plugins: {
-      legend: { display: false },
-    },
-  };
-
   constructor(private feedbackService: FeedbackService) {}
 
   ngOnInit() {
@@ -189,14 +129,16 @@ export class DashboardComponent implements OnInit {
       themes: this.feedbackService.getThemeDashboard(10),
       digest: this.feedbackService.getWeeklyDigest(),
       runs: this.feedbackService.getProcessingRuns(),
+      evaluations: this.feedbackService.getEvaluationHistory(1),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ feedback, themes, digest, runs }) => {
+        next: ({ feedback, themes, digest, runs, evaluations }) => {
           this.feedbackItems = feedback ?? [];
           this.themes = themes ?? [];
           this.digest = digest;
           this.latestRun = runs?.[0] ?? null;
+          this.latestEvaluation = evaluations?.[0] ?? null;
 
           this.calculateStatistics();
           this.loading = false;
@@ -277,12 +219,36 @@ export class DashboardComponent implements OnInit {
     return this.themes.some(theme => (theme.impactScore ?? 0) > 0);
   }
 
-  hasActionChartData(): boolean {
-    return (this.digest?.highPriorityActions ?? []).some(action => (action.impactScore ?? 0) > 0);
+  hasEvaluationData(): boolean {
+    return this.latestEvaluation !== null;
   }
 
-  hasEvaluationChartData(): boolean {
-    return this.getEvaluationScores().some(score => score > 0);
+  getThemeRelevanceScore(): number {
+    return this.latestEvaluation?.themeRelevance.score ?? 0;
+  }
+
+  getDuplicatePrecisionScore(): number {
+    return this.latestEvaluation?.clusteringPrecision ?? 0;
+  }
+
+  getRecommendationQualityScore(): number {
+    return this.latestEvaluation?.recommendationUsefulness.score ?? 0;
+  }
+
+  getMetricPercent(value: number, max: number): number {
+    if (max <= 0) {
+      return 0;
+    }
+
+    return Math.min(100, Math.max(0, (value / max) * 100));
+  }
+
+  meetsTarget(value: number, target: number): boolean {
+    return value >= target;
+  }
+
+  getPriorityClass(priority: string | undefined): string {
+    return `priority-${this.normalize(priority) || 'unknown'}`;
   }
 
   getDashboardFeedbackText(item: FeedbackItem): string {
@@ -336,8 +302,6 @@ export class DashboardComponent implements OnInit {
 
   private updateDashboardCharts() {
     const topThemes = this.themes.slice(0, 5);
-    const highPriorityActions = (this.digest?.highPriorityActions ?? []).slice(0, 5);
-    const evaluationScores = this.getEvaluationScores();
 
     this.topThemesChartData = {
       ...this.topThemesChartData,
@@ -349,39 +313,6 @@ export class DashboardComponent implements OnInit {
         },
       ],
     };
-
-    this.actionImpactChartData = {
-      ...this.actionImpactChartData,
-      labels: highPriorityActions.map(action => this.shortenLabel(action.title || 'Action')),
-      datasets: [
-        {
-          ...this.actionImpactChartData.datasets[0],
-          data: highPriorityActions.map(action => Number((action.impactScore ?? 0).toFixed(1))),
-        },
-      ],
-    };
-
-    this.evaluationChartData = {
-      ...this.evaluationChartData,
-      datasets: [
-        {
-          ...this.evaluationChartData.datasets[0],
-          data: evaluationScores,
-        },
-      ],
-    };
-  }
-
-  private getEvaluationScores(): number[] {
-    const themeRelevance = this.latestRun?.averageThemeRelevance ?? 0;
-    const duplicatePrecision = (this.latestRun?.duplicateDetectionPrecision ?? 0) * 5;
-    const actionUsefulness = this.latestRun?.averageActionUsefulness ?? 0;
-
-    return [
-      Number(themeRelevance.toFixed(1)),
-      Number(duplicatePrecision.toFixed(1)),
-      Number(actionUsefulness.toFixed(1)),
-    ];
   }
 
   private shortenLabel(value: string): string {

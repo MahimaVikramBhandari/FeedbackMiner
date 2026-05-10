@@ -6,7 +6,11 @@
       <h1>Dashboard</h1>
     </div>
 
-    <button mat-stroked-button type="button" (click)="loadDashboardData()">
+    <button
+      mat-stroked-button
+      type="button"
+      matTooltip="Reload dashboard metrics, charts, and latest feedback"
+      (click)="loadDashboardData()">
       <mat-icon>refresh</mat-icon>
       Refresh
     </button>
@@ -30,6 +34,7 @@
           mat-flat-button
           color="primary"
           type="button"
+          matTooltip="Try loading the dashboard data again"
           (click)="loadDashboardData()">
           Retry
         </button>
@@ -76,12 +81,12 @@
     <div class="workspace-grid">
       <div class="workspace-main">
     <!-- GRID -->
-    <div class="content-grid">
+    <div class="insight-grid">
 
       <!-- SENTIMENT -->
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Sentiment</mat-card-title>
+          <mat-card-title matTooltip="Breakdown of scanned feedback sentiment">Sentiment</mat-card-title>
         </mat-card-header>
 
         <mat-card-content class="sentiment-panel">
@@ -113,13 +118,12 @@
         </mat-card-content>
       </mat-card>
 
-      <!-- THEMES -->
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Top Themes by Impact</mat-card-title>
+          <mat-card-title matTooltip="Highest-impact themes found by analysis">Top Themes by Impact</mat-card-title>
         </mat-card-header>
 
-        <mat-card-content>
+        <mat-card-content class="theme-insight-content">
 
       @if (themes.length > 0) {
             @if (hasTopThemeChartData()) {
@@ -133,7 +137,7 @@
               </div>
             }
 
-            <div class="theme-list">
+            <div class="theme-list compact">
 
               @for (theme of themes.slice(0, 5); track theme.id) {
                 <div class="theme-row">
@@ -157,35 +161,32 @@
         </mat-card-content>
       </mat-card>
 
-    </div>
-
-    <div class="content-grid">
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Action Recommendations</mat-card-title>
+          <mat-card-title matTooltip="High-priority actions recommended from analyzed themes">Action Recommendations</mat-card-title>
         </mat-card-header>
 
         <mat-card-content>
           @if ((digest?.highPriorityActions ?? []).length > 0) {
-            @if (hasActionChartData()) {
-              <div class="dashboard-chart action-impact-chart">
-                <canvas
-                  baseChart
-                  [type]="'bar'"
-                  [data]="actionImpactChartData"
-                  [options]="actionImpactChartOptions">
-                </canvas>
-              </div>
-            }
-
-            <div class="theme-list">
+            <div class="action-list">
               @for (action of digest!.highPriorityActions.slice(0, 5); track action.id) {
-                <div class="theme-row">
-                  <div>
-                    <strong>{{ action.title }}</strong>
-                    <span>{{ action.category }} · {{ action.priority }} priority</span>
+                <div class="action-row">
+                  <span class="action-rank">{{ $index + 1 }}</span>
+
+                  <div class="action-body">
+                    <div class="action-title-row">
+                      <strong>{{ action.title }}</strong>
+                      <span class="priority-badge" [ngClass]="getPriorityClass(action.priority)">
+                        {{ action.priority || 'Priority' }}
+                      </span>
+                    </div>
+
+                    <div class="action-meta">
+                      <span>{{ action.category }}</span>
+                      <span>Impact {{ (action.impactScore ?? 0).toFixed(1) }}/5</span>
+                      <span>Effort {{ action.estimatedEffort ?? 0 }}/5</span>
+                    </div>
                   </div>
-                  <b>{{ (action.impactScore ?? 0).toFixed(1) }}</b>
                 </div>
               }
             </div>
@@ -197,35 +198,51 @@
 
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Evaluation Targets</mat-card-title>
+          <mat-card-title matTooltip="Latest evaluation scores compared with quality targets">Evaluation Targets</mat-card-title>
         </mat-card-header>
 
         <mat-card-content>
-          @if (hasEvaluationChartData()) {
-            <div class="dashboard-chart evaluation-chart">
-              <canvas
-                baseChart
-                [type]="'line'"
-                [data]="evaluationChartData"
-                [options]="evaluationChartOptions">
-              </canvas>
-            </div>
-          }
+          @if (hasEvaluationData()) {
+            <div class="evaluation-targets">
+              <div class="target-row" [class.met]="meetsTarget(getThemeRelevanceScore(), 4)">
+                <div class="target-row-header">
+                  <span>Theme relevance</span>
+                  <strong>{{ getThemeRelevanceScore().toFixed(1) }} / 5</strong>
+                </div>
+                <div class="target-track">
+                  <span class="target-fill" [style.width.%]="getMetricPercent(getThemeRelevanceScore(), 5)"></span>
+                  <span class="target-marker" [style.left.%]="getMetricPercent(4, 5)"></span>
+                </div>
+                <small>Target 4.0</small>
+              </div>
 
-          <div class="quality-list">
-            <div>
-              <span>Theme relevance</span>
-              <strong>{{ ((latestRun?.averageThemeRelevance ?? 0) || 0).toFixed(1) }} / 5</strong>
+              <div class="target-row" [class.met]="meetsTarget(getDuplicatePrecisionScore(), 0.8)">
+                <div class="target-row-header">
+                  <span>Duplicate precision</span>
+                  <strong>{{ getDuplicatePrecisionScore().toFixed(2) }}</strong>
+                </div>
+                <div class="target-track">
+                  <span class="target-fill" [style.width.%]="getMetricPercent(getDuplicatePrecisionScore(), 1)"></span>
+                  <span class="target-marker" [style.left.%]="getMetricPercent(0.8, 1)"></span>
+                </div>
+                <small>Target 0.80</small>
+              </div>
+
+              <div class="target-row" [class.met]="meetsTarget(getRecommendationQualityScore(), 4)">
+                <div class="target-row-header">
+                  <span>Action recommendation usefulness</span>
+                  <strong>{{ getRecommendationQualityScore().toFixed(1) }} / 5</strong>
+                </div>
+                <div class="target-track">
+                  <span class="target-fill" [style.width.%]="getMetricPercent(getRecommendationQualityScore(), 5)"></span>
+                  <span class="target-marker" [style.left.%]="getMetricPercent(4, 5)"></span>
+                </div>
+                <small>Target 4.0</small>
+              </div>
             </div>
-            <div>
-              <span>Duplicate precision</span>
-              <strong>{{ ((latestRun?.duplicateDetectionPrecision ?? 0) || 0).toFixed(2) }}</strong>
-            </div>
-            <div>
-              <span>Action usefulness</span>
-              <strong>{{ ((latestRun?.averageActionUsefulness ?? 0) || 0).toFixed(1) }} / 5</strong>
-            </div>
-          </div>
+          } @else {
+            <p class="empty-text">No evaluation targets yet.</p>
+          }
         </mat-card-content>
       </mat-card>
     </div>
@@ -246,7 +263,6 @@
 
                 <div class="feedback-header">
                   <strong>{{ getDashboardSource(item.source) }}</strong>
-                  <span>{{ item.urgencyLevel || 'Normal' }}</span>
                 </div>
 
                 <p>{{ getDashboardFeedbackText(item) }}</p>
@@ -282,10 +298,10 @@
           </p>
 
           <div class="quick-prompts">
-            <button mat-stroked-button type="button" (click)="askQuick('Summarize all feedbacks')">All Feedback</button>
-            <button mat-stroked-button type="button" (click)="askQuick('Summarize weekly digest')">Weekly Digest</button>
-            <button mat-stroked-button type="button" (click)="askQuick('What is the average theme relevance?')">Theme Relevance</button>
-            <button mat-stroked-button type="button" (click)="askQuick('Summarize evaluation history')">Evaluation History</button>
+            <button mat-stroked-button type="button" matTooltip="Prepare a prompt to summarize all stored feedback" (click)="askQuick('Summarize all feedbacks')">All Feedback</button>
+            <button mat-stroked-button type="button" matTooltip="Prepare a prompt to summarize this week's digest" (click)="askQuick('Summarize weekly digest')">Weekly Digest</button>
+            <button mat-stroked-button type="button" matTooltip="Prepare a prompt about theme relevance scores" (click)="askQuick('What is the average theme relevance?')">Theme Relevance</button>
+            <button mat-stroked-button type="button" matTooltip="Prepare a prompt to summarize evaluation history" (click)="askQuick('Summarize evaluation history')">Evaluation History</button>
           </div>
 
           <div class="assistant-input-row">
@@ -298,7 +314,13 @@
               ></textarea>
             </mat-form-field>
 
-            <button mat-flat-button color="primary" type="button" [disabled]="assistantLoading || !assistantInput.trim()" (click)="askAssistant()">
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              [disabled]="assistantLoading || !assistantInput.trim()"
+              matTooltip="Ask the assistant using the current prompt"
+              (click)="askAssistant()">
               @if (assistantLoading) {
                 <mat-spinner diameter="16"></mat-spinner>
               } @else {

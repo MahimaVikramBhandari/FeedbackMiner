@@ -6,24 +6,48 @@
     </div>
 
     <div class="actions">
-      <button mat-stroked-button type="button" (click)="loadThemes()">
-        <mat-icon>refresh</mat-icon>
-        Refresh
-      </button>
+      <div class="run-analysis-card">
+        <mat-radio-group
+          class="process-mode"
+          [(ngModel)]="processAllFeedback"
+          [disabled]="running"
+          aria-label="Process all feedback">
+          <mat-radio-button
+            [value]="false"
+            matTooltip="Analyze feedback that has not been processed yet">
+            New only
+          </mat-radio-button>
+          <mat-radio-button
+            [value]="true"
+            matTooltip="Reprocess every feedback item, including existing themes">
+            All feedback
+          </mat-radio-button>
+        </mat-radio-group>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          [disabled]="running"
+          matTooltip="Start clustering, theme extraction, and recommendations"
+          (click)="runPipeline()"
+        >
+          @if (running) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <mat-icon>play_arrow</mat-icon>
+          }
+          Run Analysis
+        </button>
+      </div>
 
       <button
-        mat-flat-button
-        color="primary"
+        mat-stroked-button
         type="button"
-        [disabled]="running"
-        (click)="runPipeline()"
-      >
-        @if (running) {
-          <mat-spinner diameter="18"></mat-spinner>
-        } @else {
-          <mat-icon>play_arrow</mat-icon>
-        }
-        Run Analysis
+        matTooltip="Reload the latest themes without running analysis"
+        (click)="loadThemes()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
       </button>
     </div>
   </div>
