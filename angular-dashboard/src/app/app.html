@@ -67,7 +67,17 @@
 
       <span class="spacer"></span>
 
-      <button mat-icon-button type="button">
+      <button
+        mat-stroked-button
+        type="button"
+        class="assistant-trigger"
+        matTooltip="Ask FeedbackMiner assistant"
+        (click)="toggleAssistant()">
+        <mat-icon>{{ assistantOpen ? 'close' : 'forum' }}</mat-icon>
+        Ask Assistant
+      </button>
+
+      <button mat-icon-button type="button" class="account-button">
         <mat-icon>account_circle</mat-icon>
       </button>
 
@@ -82,6 +92,65 @@
     <footer class="footer">
       <span>2026 FeedbackMiner</span>
     </footer>
+
+    @if (assistantOpen) {
+      <mat-card class="assistant-panel">
+        <mat-card-header>
+          <mat-card-title>Ask Assistant</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+          <p class="assistant-intro">
+            Ask about feedback, themes, reports, evaluation history, or notebook details.
+          </p>
+
+          <div class="quick-prompts">
+            <button mat-stroked-button type="button" [disabled]="assistantLoading" (click)="askQuick('Summarize all feedbacks')">All Feedback</button>
+            <button mat-stroked-button type="button" [disabled]="assistantLoading" (click)="askQuick('Summarize weekly digest')">Weekly Digest</button>
+            <button mat-stroked-button type="button" [disabled]="assistantLoading" (click)="askQuick('What is the average theme relevance?')">Theme Relevance</button>
+            <button mat-stroked-button type="button" [disabled]="assistantLoading" (click)="askQuick('Summarize evaluation history')">Evaluation History</button>
+          </div>
+
+          <div class="assistant-input-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Ask anything about feedback...</mat-label>
+              <textarea
+                matInput
+                rows="3"
+                [(ngModel)]="assistantInput">
+              </textarea>
+            </mat-form-field>
+
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              [disabled]="assistantLoading || !assistantInput.trim()"
+              (click)="askAssistant()">
+              @if (assistantLoading) {
+                <mat-spinner diameter="16"></mat-spinner>
+              } @else {
+                <mat-icon>send</mat-icon>
+              }
+              Ask
+            </button>
+          </div>
+
+          @if (assistantError) {
+            <p class="assistant-error">{{ assistantError }}</p>
+          }
+
+          <div class="assistant-thread" aria-live="polite">
+            @for (message of assistantMessages; track $index) {
+              <article class="assistant-message" [class.user]="message.role === 'user'">
+                <span>{{ message.role === 'assistant' ? 'Summary' : 'You' }}</span>
+                <p>{{ message.text }}</p>
+              </article>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
 
   </mat-sidenav-content>
 
