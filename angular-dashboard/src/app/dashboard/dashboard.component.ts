@@ -1,6 +1,5 @@
 import { Component, OnInit, DestroyRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
@@ -8,9 +7,7 @@ import { BaseChartDirective } from 'ng2-charts';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
@@ -21,12 +18,9 @@ import { FeedbackService, FeedbackItem, ProcessingRun, Theme, WeeklyDigest, Eval
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     MatButtonModule,
     MatCardModule,
-    MatFormFieldModule,
     MatIconModule,
-    MatInputModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
     BaseChartDirective
@@ -54,10 +48,6 @@ export class DashboardComponent implements OnInit {
   averageSentiment = 0;
   highUrgencyCount = 0;
   highPriorityActions = 0;
-  assistantInput = '';
-  assistantLoading = false;
-  assistantError: string | null = null;
-  assistantMessages: { role: 'assistant' | 'user'; text: string }[] = [];
   sentimentChartData: ChartConfiguration<'pie'>['data'] = {
     labels: ['Positive', 'Neutral', 'Negative'],
     datasets: [
@@ -311,39 +301,6 @@ export class DashboardComponent implements OnInit {
 
     return value
       .replace(/\[REDACTED_[A-Z_]+\]/g, '********');
-  }
-
-  askAssistant() {
-    const question = this.assistantInput.trim();
-    if (!question || this.assistantLoading) {
-      return;
-    }
-
-    this.assistantError = null;
-    this.assistantLoading = true;
-    this.assistantMessages.push({ role: 'user', text: question });
-    this.assistantInput = '';
-
-    this.feedbackService.askSummarize(question)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (response) => {
-          this.assistantMessages.push({
-            role: 'assistant',
-            text: response?.summary ?? 'I could not generate a summary right now.'
-          });
-          this.assistantLoading = false;
-        },
-        error: (error) => {
-          this.assistantError = this.getErrorMessage(error);
-          this.assistantLoading = false;
-        }
-      });
-  }
-
-  askQuick(prompt: string) {
-    this.assistantInput = prompt;
-    this.askAssistant();
   }
 
   private updateDashboardCharts() {
