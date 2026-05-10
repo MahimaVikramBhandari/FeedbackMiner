@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
-import { forkJoin } from 'rxjs';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { finalize, forkJoin } from 'rxjs';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -29,7 +29,7 @@ import {
   templateUrl: './reports-page.html',
   styleUrls: ['./reports-page.scss']
 })
-export class ReportsPageComponent implements OnInit {
+export class ReportsPageComponent implements OnInit, OnDestroy {
 
   digest: WeeklyDigest | null = null;
   runs: ProcessingRun[] = [];
@@ -37,20 +37,33 @@ export class ReportsPageComponent implements OnInit {
 
   loading = false;
   evaluatingRunId: string | null = null;
+  evaluationStartedAt: number | null = null;
+  evaluationElapsedSeconds = 0;
+  private evaluationTimerId: ReturnType<typeof setInterval> | null = null;
   error: string | null = null;
   message: string | null = null;
   summaryLoading = false;
   summaryError: string | null = null;
   summaryText: string | null = null;
 
-  constructor(private feedbackService: FeedbackService) {}
+  constructor(
+    private feedbackService: FeedbackService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.loadReports();
   }
 
-  loadReports(): void {
-    this.loading = true;
+  ngOnDestroy(): void {
+    this.stopEvaluationTimer();
+  }
+
+  loadReports(showLoading = true): void {
+    if (showLoading) {
+      this.loading = true;
+    }
+
     this.error = null;
 
     forkJoin({
@@ -63,14 +76,12 @@ export class ReportsPageComponent implements OnInit {
         this.runs = runs ?? [];
         this.evaluations = evaluations ?? [];
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (error) => {
-        this.error =
-          error?.status === 0
-            ? 'Backend not reachable. Run dotnet API.'
-            : error?.error?.error ?? error?.message ?? 'Report error';
-
+        this.error = this.describeError(error, 'Report request failed.');
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -82,17 +93,21 @@ export class ReportsPageComponent implements OnInit {
 
     this.summaryLoading = true;
     this.summaryError = null;
+    this.summaryText = null;
 
-    this.feedbackService.askSummarize(prompt).subscribe({
-      next: (response) => {
-        this.summaryText = response?.summary ?? 'No summary available.';
+    this.feedbackService.askSummarize(prompt)
+      .pipe(finalize(() => {
         this.summaryLoading = false;
-      },
-      error: (error) => {
-        this.summaryError = error?.error?.error ?? error?.message ?? 'Summary failed.';
-        this.summaryLoading = false;
-      }
-    });
+        this.cdr.detectChanges();
+      }))
+      .subscribe({
+        next: (response) => {
+          this.summaryText = response?.summary ?? 'No summary available.';
+        },
+        error: (error) => {
+          this.summaryError = this.describeError(error, 'Summary failed.');
+        }
+      });
   }
 
   latestEvaluation(): EvaluationHistoryItem | null {
@@ -139,6 +154,14 @@ export class ReportsPageComponent implements OnInit {
     return run.runId ?? run.id ?? '';
   }
 
+  hasEvaluationForRun(run: ProcessingRun): boolean {
+    const processingRunId = this.runId(run);
+
+    return !!processingRunId && this.evaluations.some(
+      evaluation => evaluation.processingRunId === processingRunId
+    );
+  }
+
   evaluate(run: ProcessingRun): void {
     const processingRunId = this.runId(run);
 
@@ -148,20 +171,37 @@ export class ReportsPageComponent implements OnInit {
     }
 
     this.evaluatingRunId = processingRunId;
+    this.evaluationStartedAt = Date.now();
+    this.evaluationElapsedSeconds = 0;
     this.error = null;
     this.message = null;
+    this.startEvaluationTimer();
 
     this.feedbackService.evaluateRun(processingRunId).subscribe({
       next: () => {
-        this.message = 'Evaluation completed.';
+        const duration = this.formatElapsed(this.evaluationElapsedSeconds);
+        this.message = `Evaluation completed in ${duration}.`;
         this.evaluatingRunId = null;
-        this.loadReports();
+        this.stopEvaluationTimer();
+        this.cdr.detectChanges();
+        this.loadReports(false);
       },
       error: (error) => {
-        this.error = error?.error?.error ?? error?.message ?? 'Evaluation failed.';
+        const duration = this.formatElapsed(this.evaluationElapsedSeconds);
+        this.error = `${this.describeError(error, 'Evaluation failed.')} Evaluation stopped after ${duration}.`;
         this.evaluatingRunId = null;
+        this.stopEvaluationTimer();
+        this.cdr.detectChanges();
       }
     });
+  }
+
+  getEvaluationStatusText(): string {
+    if (!this.evaluatingRunId) {
+      return '';
+    }
+
+    return `Running for ${this.formatElapsed(this.evaluationElapsedSeconds)}`;
   }
 
   openWeeklyDigestCsv(): void {
@@ -176,6 +216,11 @@ export class ReportsPageComponent implements OnInit {
       return;
     }
 
+    if (!this.hasEvaluationForRun(run)) {
+      this.error = 'Run evaluation first, then open the notebook.';
+      return;
+    }
+
     const url = format === 'html'
       ? this.feedbackService.getNotebookHtmlUrl(processingRunId)
       : this.feedbackService.getNotebookJsonUrl(processingRunId);
@@ -183,14 +228,37 @@ export class ReportsPageComponent implements OnInit {
     window.open(url, '_blank');
   }
 
-  openClusterExport(run: ProcessingRun): void {
-    const processingRunId = this.runId(run);
+  private formatElapsed(totalSeconds: number): string {
+    return totalSeconds < 60
+      ? `${totalSeconds}s`
+      : `${Math.floor(totalSeconds / 60)}m ${totalSeconds % 60}s`;
+  }
 
-    if (!processingRunId) {
-      this.error = 'Processing run id is missing.';
-      return;
+  private startEvaluationTimer(): void {
+    this.stopEvaluationTimer();
+
+    this.evaluationTimerId = setInterval(() => {
+      if (!this.evaluationStartedAt) {
+        return;
+      }
+
+      this.evaluationElapsedSeconds = Math.floor((Date.now() - this.evaluationStartedAt) / 1000);
+      this.cdr.detectChanges();
+    }, 1000);
+  }
+
+  private stopEvaluationTimer(): void {
+    if (this.evaluationTimerId) {
+      clearInterval(this.evaluationTimerId);
+      this.evaluationTimerId = null;
+    }
+  }
+
+  private describeError(error: any, fallback: string): string {
+    if (error?.status === 0) {
+      return 'Backend not reachable. Run dotnet API.';
     }
 
-    window.open(this.feedbackService.getClusterExportUrl(processingRunId), '_blank');
+    return error?.error?.error ?? error?.message ?? fallback;
   }
 }

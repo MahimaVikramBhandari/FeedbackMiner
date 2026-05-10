@@ -29,7 +29,7 @@
           color="primary"
           type="button"
           [disabled]="running"
-          matTooltip="Start clustering, theme extraction, and recommendations"
+          [matTooltip]="running ? getRunStatusText() : 'Start clustering, theme extraction, and recommendations'"
           (click)="runPipeline()"
         >
           @if (running) {
@@ -37,7 +37,7 @@
           } @else {
             <mat-icon>play_arrow</mat-icon>
           }
-          Run Analysis
+          {{ running ? 'Running Analysis' : 'Run Analysis' }}
         </button>
       </div>
 
@@ -56,6 +56,18 @@
       </button>
     </div>
   </div>
+
+  @if (running) {
+    <mat-card class="running-card">
+      <mat-card-content>
+        <div>
+          <strong>Analysis is running</strong>
+          <span>{{ getRunStatusText() }}. Clustering, theme extraction, and recommendations can take a little time.</span>
+        </div>
+        <mat-spinner diameter="24"></mat-spinner>
+      </mat-card-content>
+    </mat-card>
+  }
 
   <!-- ERROR -->
   @if (error) {

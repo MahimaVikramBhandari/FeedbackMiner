@@ -71,6 +71,7 @@ h1 {
 }
 
 .run-actions {
+  flex-wrap: wrap;
   justify-content: flex-end;
 }
 
@@ -192,6 +193,28 @@ h1 {
   gap: 10px;
   color: #667085;
   font-size: 13px;
+}
+
+.running-card mat-card-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  div {
+    display: grid;
+    gap: 4px;
+  }
+
+  strong {
+    color: #172033;
+    font-size: 15px;
+  }
+
+  span {
+    color: #667085;
+    font-size: 13px;
+  }
 }
 
 .summary-text {

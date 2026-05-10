@@ -105,12 +105,17 @@ export class AppComponent {
         this.assistantLoading = false;
       },
       error: (error) => {
-        this.assistantError =
-          error?.status === 0
-            ? 'Backend is not reachable. Start API using dotnet run.'
-            : error?.error?.error ?? error?.message ?? 'Assistant request failed.';
+        this.assistantError = this.describeError(error, 'Assistant request failed.');
         this.assistantLoading = false;
       }
     });
+  }
+
+  private describeError(error: any, fallback: string): string {
+    if (error?.status === 0) {
+      return 'Backend is not reachable. Start API using dotnet run.';
+    }
+
+    return error?.error?.error ?? error?.message ?? fallback;
   }
 }

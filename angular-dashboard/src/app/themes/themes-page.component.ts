@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
+import { finalize } from 'rxjs';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -30,13 +31,17 @@ import { FeedbackService, Theme } from '../services/feedback';
   templateUrl: './themes-page.html',
   styleUrls: ['./themes-page.scss']
 })
-export class ThemesPageComponent implements OnInit {
+export class ThemesPageComponent implements OnInit, OnDestroy {
 
   themes: Theme[] = [];
 
   loading = false;
   running = false;
   processAllFeedback = true;
+  runStartedAt: number | null = null;
+  runElapsedSeconds = 0;
+  private runTimerId: ReturnType<typeof setInterval> | null = null;
+  private postRunRefreshTimerId: ReturnType<typeof setTimeout> | null = null;
 
   error: string | null = null;
   pipelineMessage: string | null = null;
@@ -79,14 +84,25 @@ export class ThemesPageComponent implements OnInit {
     }
   };
 
-  constructor(private feedbackService: FeedbackService) {}
+  constructor(
+    private feedbackService: FeedbackService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.loadThemes();
   }
 
-  loadThemes(): void {
-    this.loading = true;
+  ngOnDestroy(): void {
+    this.stopRunTimer();
+    this.clearPostRunRefresh();
+  }
+
+  loadThemes(showLoading = true): void {
+    if (showLoading) {
+      this.loading = true;
+    }
+
     this.error = null;
 
     this.feedbackService.getThemeDashboard(100).subscribe({
@@ -94,10 +110,12 @@ export class ThemesPageComponent implements OnInit {
         this.themes = themes ?? [];
         this.updateThemeChart();
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (error) => {
-        this.error = this.describeError(error);
+        this.error = this.describeError(error, 'Theme request failed.');
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -109,17 +127,21 @@ export class ThemesPageComponent implements OnInit {
 
     this.summaryLoading = true;
     this.summaryError = null;
+    this.summaryText = null;
 
-    this.feedbackService.askSummarize(prompt).subscribe({
-      next: (response) => {
-        this.summaryText = response?.summary ?? 'No summary available.';
+    this.feedbackService.askSummarize(prompt)
+      .pipe(finalize(() => {
         this.summaryLoading = false;
-      },
-      error: (error) => {
-        this.summaryError = this.describeError(error);
-        this.summaryLoading = false;
-      }
-    });
+        this.cdr.detectChanges();
+      }))
+      .subscribe({
+        next: (response) => {
+          this.summaryText = response?.summary ?? 'No summary available.';
+        },
+        error: (error) => {
+          this.summaryError = this.describeError(error, 'Summary failed.');
+        }
+      });
   }
 
   hasThemeChartData(): boolean {
@@ -128,28 +150,88 @@ export class ThemesPageComponent implements OnInit {
 
   runPipeline(): void {
     this.running = true;
+    this.runStartedAt = Date.now();
+    this.runElapsedSeconds = 0;
     this.error = null;
     this.pipelineMessage = null;
+    this.startRunTimer();
 
     this.feedbackService.runPipeline({
       runName: `Dashboard-${new Date().toISOString()}`,
       processAllFeedback: this.processAllFeedback,
     }).subscribe({
       next: (run) => {
+        const duration = this.formatElapsed(this.runElapsedSeconds);
         this.pipelineMessage =
-          `Analysis completed: ${run.feedbackProcessed ?? 0} feedback, ` +
+          `Analysis completed in ${duration}: ${run.feedbackProcessed ?? 0} feedback, ` +
           `${run.clustersCreated ?? 0} clusters, ${run.themesExtracted ?? 0} themes.`;
         this.running = false;
-        this.loadThemes();
+        this.stopRunTimer();
+        this.cdr.detectChanges();
+        this.refreshThemesAfterRun();
       },
       error: (error) => {
-        this.error = this.describeError(error);
+        const duration = this.formatElapsed(this.runElapsedSeconds);
+        this.error = `${this.describeError(error, 'Analysis failed.')} Analysis stopped after ${duration}.`;
         this.running = false;
+        this.stopRunTimer();
+        this.cdr.detectChanges();
       }
     });
   }
 
-  private describeError(error: any): string {
+  getRunStatusText(): string {
+    if (!this.running) {
+      return '';
+    }
+
+    return `Running for ${this.formatElapsed(this.runElapsedSeconds)}`;
+  }
+
+  private formatElapsed(totalSeconds: number): string {
+    return totalSeconds < 60
+      ? `${totalSeconds}s`
+      : `${Math.floor(totalSeconds / 60)}m ${totalSeconds % 60}s`;
+  }
+
+  private startRunTimer(): void {
+    this.stopRunTimer();
+
+    this.runTimerId = setInterval(() => {
+      if (!this.runStartedAt) {
+        return;
+      }
+
+      this.runElapsedSeconds = Math.floor((Date.now() - this.runStartedAt) / 1000);
+      this.cdr.detectChanges();
+    }, 1000);
+  }
+
+  private stopRunTimer(): void {
+    if (this.runTimerId) {
+      clearInterval(this.runTimerId);
+      this.runTimerId = null;
+    }
+  }
+
+  private refreshThemesAfterRun(): void {
+    this.loadThemes(false);
+    this.clearPostRunRefresh();
+
+    this.postRunRefreshTimerId = setTimeout(() => {
+      this.loadThemes(false);
+      this.postRunRefreshTimerId = null;
+    }, 1500);
+  }
+
+  private clearPostRunRefresh(): void {
+    if (this.postRunRefreshTimerId) {
+      clearTimeout(this.postRunRefreshTimerId);
+      this.postRunRefreshTimerId = null;
+    }
+  }
+
+  private describeError(error: any, fallback: string): string {
     if (error?.status === 0) {
       return 'Backend is not reachable. Start API using dotnet run.';
     }
@@ -158,7 +240,7 @@ export class ThemesPageComponent implements OnInit {
       return 'API endpoint not found. Check backend routes.';
     }
 
-    return error?.error?.error ?? error?.message ?? 'Theme request failed.';
+    return error?.error?.error ?? error?.message ?? fallback;
   }
 
   private updateThemeChart(): void {

@@ -10,7 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { fromEvent, timer } from 'rxjs';
+import { timer } from 'rxjs';
 import { FeedbackItem, FeedbackService } from '../services/feedback';
 
 type FeedbackSortMode = 'newest' | 'oldest' | 'positive' | 'negative';
@@ -119,14 +119,21 @@ export class FeedbackPageComponent implements OnInit {
     };
 
     this.feedbackService.createFeedback(request).subscribe({
-      next: () => {
+      next: (created) => {
         this.saving = false;
+
+        if (created) {
+          this.feedbackItems = [created, ...this.feedbackItems];
+        }
+
         this.form.reset({
           source: 'manual',
           text: '',
         });
+        this.form.markAsPristine();
+        this.form.markAsUntouched();
 
-        this.loadFeedback();
+        this.loadFeedback(false);
       },
       error: (error) => {
         this.error = this.describeError(error);
@@ -172,11 +179,6 @@ export class FeedbackPageComponent implements OnInit {
   private startAutoRefresh() {
     // Keep latest feedback list fresh while user stays on this page.
     timer(8000, 8000)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.refreshLatest());
-
-    // Refresh when app window regains focus.
-    fromEvent(window, 'focus')
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.refreshLatest());
   }

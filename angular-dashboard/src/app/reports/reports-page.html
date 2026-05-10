@@ -28,12 +28,6 @@
       <mat-card-content>{{ error }}</mat-card-content>
     </mat-card>
   } @else {
-    @if (message) {
-      <mat-card class="success-card">
-        <mat-card-content>{{ message }}</mat-card-content>
-      </mat-card>
-    }
-
     <!-- DIGEST -->
     @if (digest !== null) {
       <div class="metrics-grid">
@@ -182,6 +176,24 @@
     }
 
     <!-- RUNS -->
+    @if (evaluatingRunId) {
+      <mat-card class="running-card">
+        <mat-card-content>
+          <div>
+            <strong>Evaluation is running</strong>
+            <span>{{ getEvaluationStatusText() }}. Quality metrics can take a little time to calculate.</span>
+          </div>
+          <mat-spinner diameter="24"></mat-spinner>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    @if (message) {
+      <mat-card class="success-card">
+        <mat-card-content>{{ message }}</mat-card-content>
+      </mat-card>
+    }
+
     <mat-card>
       <mat-card-header>
         <mat-card-title>Processing Runs</mat-card-title>
@@ -211,20 +223,21 @@
                     mat-stroked-button
                     type="button"
                     [disabled]="evaluatingRunId === runId(run)"
-                    matTooltip="Run evaluation metrics for this processing run"
+                    [matTooltip]="evaluatingRunId === runId(run) ? getEvaluationStatusText() : 'Run evaluation metrics for this processing run'"
                     (click)="evaluate(run)">
                     @if (evaluatingRunId === runId(run)) {
                       <mat-spinner diameter="16"></mat-spinner>
                     } @else {
                       <mat-icon>fact_check</mat-icon>
                     }
-                    Evaluate
+                    {{ evaluatingRunId === runId(run) ? 'Evaluating' : hasEvaluationForRun(run) ? 'Re-evaluate' : 'Evaluate' }}
                   </button>
 
                   <button
                     mat-stroked-button
                     type="button"
-                    matTooltip="Open the evaluation notebook as HTML"
+                    [disabled]="evaluatingRunId === runId(run) || !hasEvaluationForRun(run)"
+                    [matTooltip]="hasEvaluationForRun(run) ? 'Open the evaluation notebook as HTML' : 'Run evaluation first to generate the notebook'"
                     (click)="openNotebook(run, 'html')">
                     <mat-icon>article</mat-icon>
                     Notebook
@@ -233,19 +246,11 @@
                   <button
                     mat-stroked-button
                     type="button"
-                    matTooltip="Open clustered feedback export for this run"
-                    (click)="openClusterExport(run)">
-                    <mat-icon>ios_share</mat-icon>
-                    Clusters
-                  </button>
-
-                  <button
-                    mat-icon-button
-                    type="button"
-                    aria-label="Download notebook JSON"
-                    matTooltip="Open raw evaluation notebook JSON"
+                    [disabled]="evaluatingRunId === runId(run) || !hasEvaluationForRun(run)"
+                    [matTooltip]="hasEvaluationForRun(run) ? 'Open raw evaluation notebook JSON' : 'Run evaluation first to generate notebook JSON'"
                     (click)="openNotebook(run, 'json')">
                     <mat-icon>data_object</mat-icon>
+                    JSON
                   </button>
                 </div>
 
