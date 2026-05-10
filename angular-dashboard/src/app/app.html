@@ -18,24 +18,24 @@
 
       <h3 matSubheader>Main</h3>
 
-      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link" (click)="openPage('/dashboard', drawer)">
+      <a mat-list-item [class.active-link]="isActive('/dashboard')" (click)="openPage('/dashboard', drawer)">
         <mat-icon matListItemIcon>dashboard</mat-icon>
         <span>Dashboard</span>
       </a>
 
-      <a mat-list-item routerLink="/feedback" routerLinkActive="active-link" (click)="openPage('/feedback', drawer)">
+      <a mat-list-item [class.active-link]="isActive('/feedback')" (click)="openPage('/feedback', drawer)">
         <mat-icon matListItemIcon>rate_review</mat-icon>
         <span>Feedback</span>
       </a>
 
       <h3 matSubheader>Analysis</h3>
 
-      <a mat-list-item routerLink="/themes" routerLinkActive="active-link" (click)="openPage('/themes', drawer)">
+      <a mat-list-item [class.active-link]="isActive('/themes')" (click)="openPage('/themes', drawer)">
         <mat-icon matListItemIcon>category</mat-icon>
         <span>Themes</span>
       </a>
 
-      <a mat-list-item routerLink="/reports" routerLinkActive="active-link" (click)="openPage('/reports', drawer)">
+      <a mat-list-item [class.active-link]="isActive('/reports')" (click)="openPage('/reports', drawer)">
         <mat-icon matListItemIcon>analytics</mat-icon>
         <span>Reports</span>
       </a>
@@ -61,7 +61,7 @@
           <mat-icon>menu</mat-icon>
         </button>
 
-        <span class="title">FeedbackMiner</span>
+        <span class="title">Welcome to FeedbackMiner! Turn feedback into clear insights.</span>
 
       </div>
 

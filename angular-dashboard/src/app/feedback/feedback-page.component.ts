@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { fromEvent, timer } from 'rxjs';
 import { FeedbackItem, FeedbackService } from '../services/feedback';
 
@@ -28,6 +29,7 @@ type SentimentFilter = 'all' | 'positive' | 'neutral' | 'negative' | 'unscanned'
     MatInputModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    MatTooltipModule,
   ],
   templateUrl: './feedback-page.html',
   styleUrls: ['./feedback-page.scss'],

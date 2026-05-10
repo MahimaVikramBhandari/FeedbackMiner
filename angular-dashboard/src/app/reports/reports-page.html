@@ -10,7 +10,11 @@
       type="button"
       matTooltip="Reload digest, runs, and evaluation history"
       (click)="loadReports()">
-      <mat-icon>refresh</mat-icon>
+      @if (loading) {
+        <mat-spinner diameter="16"></mat-spinner>
+      } @else {
+        <mat-icon>refresh</mat-icon>
+      }
       Refresh
     </button>
   </div>

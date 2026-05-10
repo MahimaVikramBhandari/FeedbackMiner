@@ -44,9 +44,14 @@
       <button
         mat-stroked-button
         type="button"
+        [disabled]="running"
         matTooltip="Reload the latest themes without running analysis"
         (click)="loadThemes()">
-        <mat-icon>refresh</mat-icon>
+        @if (loading) {
+          <mat-spinner diameter="16"></mat-spinner>
+        } @else {
+          <mat-icon>refresh</mat-icon>
+        }
         Refresh
       </button>
     </div>

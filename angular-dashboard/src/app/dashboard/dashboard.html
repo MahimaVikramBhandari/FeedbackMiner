@@ -11,7 +11,11 @@
       type="button"
       matTooltip="Reload dashboard metrics, charts, and latest feedback"
       (click)="loadDashboardData()">
-      <mat-icon>refresh</mat-icon>
+      @if (loading) {
+        <mat-spinner diameter="16"></mat-spinner>
+      } @else {
+        <mat-icon>refresh</mat-icon>
+      }
       Refresh
     </button>
   </div>
@@ -125,7 +129,7 @@
 
         <mat-card-content class="theme-insight-content">
 
-      @if (themes.length > 0) {
+          @if (themes.length > 0) {
             @if (hasTopThemeChartData()) {
               <div class="dashboard-chart theme-impact-chart">
                 <canvas
@@ -298,10 +302,10 @@
           </p>
 
           <div class="quick-prompts">
-            <button mat-stroked-button type="button" matTooltip="Prepare a prompt to summarize all stored feedback" (click)="askQuick('Summarize all feedbacks')">All Feedback</button>
-            <button mat-stroked-button type="button" matTooltip="Prepare a prompt to summarize this week's digest" (click)="askQuick('Summarize weekly digest')">Weekly Digest</button>
-            <button mat-stroked-button type="button" matTooltip="Prepare a prompt about theme relevance scores" (click)="askQuick('What is the average theme relevance?')">Theme Relevance</button>
-            <button mat-stroked-button type="button" matTooltip="Prepare a prompt to summarize evaluation history" (click)="askQuick('Summarize evaluation history')">Evaluation History</button>
+            <button mat-stroked-button type="button" [disabled]="assistantLoading" matTooltip="Summarize all stored feedback now" (click)="askQuick('Summarize all feedbacks')">All Feedback</button>
+            <button mat-stroked-button type="button" [disabled]="assistantLoading" matTooltip="Summarize this week's digest now" (click)="askQuick('Summarize weekly digest')">Weekly Digest</button>
+            <button mat-stroked-button type="button" [disabled]="assistantLoading" matTooltip="Ask about theme relevance now" (click)="askQuick('What is the average theme relevance?')">Theme Relevance</button>
+            <button mat-stroked-button type="button" [disabled]="assistantLoading" matTooltip="Summarize evaluation history now" (click)="askQuick('Summarize evaluation history')">Evaluation History</button>
           </div>
 
           <div class="assistant-input-row">

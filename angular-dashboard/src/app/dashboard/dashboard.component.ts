@@ -63,7 +63,7 @@ export class DashboardComponent implements OnInit {
     datasets: [
       {
         data: [0, 0, 0],
-        backgroundColor: ['#079455', '#667085', '#d92d20'],
+        backgroundColor: ['#0f8b6f', '#748094', '#c94a4a'],
         borderColor: '#ffffff',
         borderWidth: 2,
       },
@@ -77,6 +77,16 @@ export class DashboardComponent implements OnInit {
         display: false,
       },
       tooltip: {
+        titleFont: {
+          family: 'Roboto, "Helvetica Neue", sans-serif',
+          size: 13,
+          weight: 650,
+        },
+        bodyFont: {
+          family: 'Roboto, "Helvetica Neue", sans-serif',
+          size: 13,
+          weight: 400,
+        },
         callbacks: {
           label: (context) => `${context.label}: ${context.parsed}`,
         },
@@ -104,14 +114,49 @@ export class DashboardComponent implements OnInit {
         beginAtZero: true,
         max: 5,
         grid: { color: '#eef0f4' },
+        ticks: {
+          color: '#667085',
+          font: {
+            family: 'Roboto, "Helvetica Neue", sans-serif',
+            size: 12,
+            weight: 500,
+          },
+        },
       },
       y: {
         grid: { display: false },
-        ticks: { autoSkip: false },
+        ticks: {
+          autoSkip: false,
+          color: '#667085',
+          padding: 8,
+          align: 'end',
+          crossAlign: 'far',
+          callback: (value) => this.shortenLabel(String(this.topThemesChartData.labels?.[Number(value)] ?? '')),
+          font: {
+            family: 'Roboto, "Helvetica Neue", sans-serif',
+            size: 12,
+            weight: 500,
+          },
+        },
       },
     },
     plugins: {
       legend: { display: false },
+      tooltip: {
+        titleFont: {
+          family: 'Roboto, "Helvetica Neue", sans-serif',
+          size: 13,
+          weight: 650,
+        },
+        bodyFont: {
+          family: 'Roboto, "Helvetica Neue", sans-serif',
+          size: 13,
+          weight: 400,
+        },
+        callbacks: {
+          title: (items) => items[0]?.label ?? '',
+        },
+      },
     },
   };
   constructor(private feedbackService: FeedbackService) {}
@@ -298,6 +343,7 @@ export class DashboardComponent implements OnInit {
 
   askQuick(prompt: string) {
     this.assistantInput = prompt;
+    this.askAssistant();
   }
 
   private updateDashboardCharts() {
@@ -305,7 +351,7 @@ export class DashboardComponent implements OnInit {
 
     this.topThemesChartData = {
       ...this.topThemesChartData,
-      labels: topThemes.map(theme => this.shortenLabel(theme.label || 'Theme')),
+      labels: topThemes.map(theme => theme.label || 'Theme'),
       datasets: [
         {
           ...this.topThemesChartData.datasets[0],

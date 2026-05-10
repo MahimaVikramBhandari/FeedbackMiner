@@ -5,8 +5,16 @@
       <h1>Feedback</h1>
     </div>
 
-    <button mat-stroked-button type="button" (click)="loadFeedback()">
-      <mat-icon>refresh</mat-icon>
+    <button
+      mat-stroked-button
+      type="button"
+      matTooltip="Reload the latest feedback items"
+      (click)="loadFeedback()">
+      @if (loading) {
+        <mat-spinner diameter="16"></mat-spinner>
+      } @else {
+        <mat-icon>refresh</mat-icon>
+      }
       Refresh
     </button>
   </div>

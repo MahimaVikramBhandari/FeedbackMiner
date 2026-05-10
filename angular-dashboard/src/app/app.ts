@@ -46,4 +46,13 @@ export class AppComponent {
       drawer.close();
     }
   }
+
+  isActive(path: string): boolean {
+    return this.router.isActive(path, {
+      paths: 'exact',
+      queryParams: 'ignored',
+      fragment: 'ignored',
+      matrixParams: 'ignored',
+    });
+  }
 }
