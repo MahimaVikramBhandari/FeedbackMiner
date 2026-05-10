@@ -147,7 +147,9 @@ public class ThemesController : ControllerBase
                 .Select(f => new FeedbackSummaryDto
                 {
                     Id = f.Id,
-                    Text = f.ProcessedText ?? f.Text,
+                    Text = f.Text,
+                    ProcessedText = f.ProcessedText ?? f.Text,
+                    Language = f.Language,
                     Source = f.Source,
                     SentimentScore = f.SentimentScore,
                     SentimentLabel = f.SentimentLabel,
@@ -169,7 +171,7 @@ public class ThemesController : ControllerBase
     /// Get action recommendations for a theme
     /// </summary>
     [HttpGet("{themeId}/recommendations")]
-    public IActionResult GetThemeRecommendations(Guid themeId, [FromQuery] string? status = null)
+    public IActionResult GetThemeRecommendations(Guid themeId)
     {
         try
         {

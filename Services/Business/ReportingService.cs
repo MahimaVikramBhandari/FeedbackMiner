@@ -169,7 +169,9 @@ public class ReportingService
                 FeedbackItems = feedbackItems.Select(f => new FeedbackSummaryDto
                 {
                     Id = f.Id,
-                    Text = f.ProcessedText ?? f.Text,
+                    Text = f.Text,
+                    ProcessedText = f.ProcessedText ?? f.Text,
+                    Language = f.Language,
                     Source = f.Source,
                     SentimentScore = f.SentimentScore,
                     SentimentLabel = f.SentimentLabel,

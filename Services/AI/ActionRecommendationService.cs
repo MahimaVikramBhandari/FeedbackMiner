@@ -1,8 +1,6 @@
 using OpenAI;
 using OpenAI.Chat;
-using System.ComponentModel;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 /// <summary>
 /// Service for generating action recommendations from themes using GPT function calling
