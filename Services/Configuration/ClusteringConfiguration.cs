@@ -8,40 +8,10 @@
 /// </summary>
 public static class ClusteringConfiguration
 {
-    /// <summary>
-    /// Primary clustering threshold for theme extraction
-    /// 
-    /// Value: 0.70 (70% similarity)
-    /// Rationale:
-    /// - 0.50: Too loose - produces massive clusters, poor precision
-    /// - 0.70: OPTIMAL - balances tight clustering with relevant grouping
-    /// - 0.80: Too tight - fragments related feedback into separate clusters
-    /// 
-    /// </summary>
     public const double ClusteringThreshold = 0.55;
 
-    /// <summary>
-    /// High-similarity threshold for strict duplicate detection
-    /// 
-    /// Value: 0.85 (85% similarity)
-    /// Rationale:
-    /// - Used to identify near-identical feedback items
-    /// - Only matches items with very high semantic similarity
-    /// - Separate from main clustering threshold to allow:
-    ///   * Main clustering at 0.70 for related items
-    ///   * Duplicate detection at 0.85 for nearly identical items
-    /// </summary>
     public const double DuplicateDetectionThreshold = 0.85;
 
-    /// <summary>
-    /// Silhouette score threshold for identifying well-formed clusters
-    /// 
-    /// Value: 0.3 (30%)
-    /// Rationale:
-    /// - Clusters with silhouette > 0.3 are considered high-quality
-    /// - Triggers quality bonuses in usefulness and relevance calculations
-    /// - Directly impacts whether thresholds are met
-    /// </summary>
     public const double SilhouetteQualityThreshold = 0.3;
 
     /// <summary>
@@ -145,15 +115,22 @@ public static class ClusteringConfiguration
     /// <summary>
     /// Get a descriptive label for a clustering threshold
     /// </summary>
+
     public static string GetThresholdLabel(double threshold)
     {
         return threshold switch
         {
-            <= 0.50 => "Very Loose (experimental)",
-            <= 0.60 => "Loose (diverse feedback)",
-            <= 0.70 => "Balanced",
-            <= 0.80 => "Tight (similar feedback)",
-            _ => "Very Tight (near-duplicates)"
+            <= 0.45 => "Very Loose (broad semantic grouping)",
+
+            <= 0.55 => "Balanced (recommended for feedback clustering)",
+
+            <= 0.65 => "Focused (high semantic similarity)",
+
+            <= 0.75 => "Strict (near-duplicate feedback)",
+
+            _ => "Very Strict (almost identical feedback)"
         };
     }
+
+
 }
