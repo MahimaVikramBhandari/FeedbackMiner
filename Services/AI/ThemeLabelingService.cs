@@ -64,40 +64,45 @@ public class ThemeLabelingService
                 var examplesText = string.Join("\n\n", examples.Select((e, i) => $"{i + 1}. {e}"));
 
                 var systemPrompt = @"Analyze the following feedback messages and create a concise theme label and description.
+                                        Return a JSON object with exactly these fields:
+                                        {
+                                          ""label"": ""<short theme name, 2-4 words, e.g., 'Performance Issues', 'Poor Documentation'>"",
+                                          ""description"": ""<detailed description of the theme, 1-2 sentences>"",
+                                          ""relevanceScore"": <number between 1 and 5 where 5 is highest relevance>,
+                                          ""keywords"": [""list"", ""of"", ""key"", ""words""],
+                                          ""affectedAreas"": [""list"", ""of"", ""product"", ""areas""],
+                                          ""affectedSegments"": [""list"", ""of"", ""customer"", ""segments""],
+                                          ""commonPatterns"": [""pattern1"", ""pattern2""]
+                                        }
 
-Return a JSON object with exactly these fields:
-{
-  ""label"": ""<short theme name, 2-4 words, e.g., 'Performance Issues', 'Poor Documentation'>"",
-  ""description"": ""<detailed description of the theme, 1-2 sentences>"",
-  ""relevanceScore"": <number between 1 and 5 where 5 is highest relevance>,
-  ""keywords"": [""list"", ""of"", ""key"", ""words""],
-  ""affectedAreas"": [""list"", ""of"", ""product"", ""areas""],
-  ""affectedSegments"": [""list"", ""of"", ""customer"", ""segments""],
-  ""commonPatterns"": [""pattern1"", ""pattern2""]
-}
+                                        Focus on:
+                                        - Creating a clear, actionable theme name
+                                        - Identifying the core issue
+                                        - Noting affected areas and customer segments
+                                        - Finding common patterns across the feedback
+                                        - Using short, stable, business-friendly terminology 
+                                        - Avoiding creative wording or unnecessary synonyms 
+                                        - Returning consistent labels for semantically similar feedback
 
-Focus on:
-- Creating a clear, actionable theme name
-- Identifying the core issue
-- Noting affected areas and customer segments
-- Finding common patterns across the feedback";
+                                        If multiple labels are possible, choose the simplest and most generic business category. Keep labels under 4 words.";
+                        
 
-                var userPrompt = $@"Analyze this cluster of {clusterItems.Count} similar feedback messages:
-
-{examplesText}
-
-Generate theme insights:";
+                var userPrompt = $@"Analyze this cluster of {clusterItems.Count} similar feedback messages:{examplesText} Generate theme insights:";
+                var options = new ChatCompletionOptions
+                {
+                    Temperature = 0.2f
+                };
 
                 var response = await chatClient.CompleteChatAsync(
-                    new List<ChatMessage>
-                    {
-                        ChatMessage.CreateSystemMessage(systemPrompt),
-                        ChatMessage.CreateUserMessage(userPrompt)
-                    }
-                );
+                        new List<ChatMessage>
+                        {
+                            ChatMessage.CreateSystemMessage(systemPrompt),
+                            ChatMessage.CreateUserMessage(userPrompt)
+                        },options
+                    );
 
-                var resultText = response?.Value?.Content?[0]?.Text;
-                return ParseThemeLabelingResponse(resultText);
+                    var resultText = response?.Value?.Content?[0]?.Text;
+                    return ParseThemeLabelingResponse(resultText);
         }
         catch (Exception ex)
         {
@@ -155,13 +160,18 @@ Return ONLY a JSON object:
         {sampleFeedback}
 
         Rate this theme's relevance (1-5):";
+                        var options = new ChatCompletionOptions
+                        {
+                            Temperature = 0.2f
+                        };
+                        
 
                         var response = await chatClient.CompleteChatAsync(
                             new List<ChatMessage>
                             {
                                 ChatMessage.CreateSystemMessage(systemPrompt),
                                 ChatMessage.CreateUserMessage(userPrompt)
-                            }
+                            }, options
                         );
 
                         var resultText = response?.Value?.Content?[0]?.Text;

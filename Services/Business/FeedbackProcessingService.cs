@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using static ClusteringService;
 
 /// <summary>
@@ -42,7 +43,7 @@ public class FeedbackProcessingService
     public async Task<ProcessingRun> RunFullPipelineAsync(
         List<FeedbackItem> feedbackItems,
         string runName = null,
-        double clusterSimilarityThreshold = 0.65)  // Increased from 0.5 to 0.65 for better clustering cohesion
+        double clusterSimilarityThreshold = 0.65)
     {
         if (feedbackItems.Count == 0)
             throw new ArgumentException("No feedback items to process", nameof(feedbackItems));
@@ -120,9 +121,27 @@ public class FeedbackProcessingService
 
     private async Task GenerateEmbeddingsAsync(List<FeedbackItem> items)
     {
+
         var textsToEmbed = items
-            .Where(i => string.IsNullOrEmpty(i.EmbeddingJson))
-            .Select(i => i.ProcessedText ?? i.Text)
+            //.Where(i => string.IsNullOrEmpty(i.EmbeddingJson))
+            .Select(i =>
+            {
+                var text = i.ProcessedText ?? i.Text;
+
+                // Remove PII placeholder tokens before embedding generation
+                // to improve semantic similarity and clustering quality
+                text = text
+                    .Replace("[REDACTED_EMAIL]", "")
+                    .Replace("[REDACTED_PHONE]", "")
+                    .Replace("[REDACTED_NAME]", "")
+                    .Replace("[REDACTED_CARD]", "")
+                    .Replace("[REDACTED_IP]", "");
+
+                // Normalize extra spaces after replacements
+                text = Regex.Replace(text, @"\s{2,}", " ").Trim();
+
+                return text;
+            })
             .ToList();
 
         if (textsToEmbed.Count == 0)
@@ -296,20 +315,90 @@ public class FeedbackProcessingService
         await _dbContext.SaveChangesAsync();
     }
 
-    private void CalculateMetrics(ProcessingRun run, List<FeedbackCluster> clusters, List<Theme> themes)
+    private void CalculateMetrics(
+            ProcessingRun run,
+            List<FeedbackCluster> clusters,
+            List<Theme> themes)
     {
+        // -----------------------------
+        // Average Cluster Quality
+        // -----------------------------
         if (clusters.Count > 0)
         {
-            run.AverageClusterQuality = clusters.Average(c => c.SilhouetteScore);
+            run.AverageClusterQuality = Math.Round(
+                clusters.Average(c => c.SilhouetteScore),
+                3);
         }
 
+        // -----------------------------
+        // Average Theme Relevance
+        // -----------------------------
         if (themes.Count > 0)
         {
-            run.AverageThemeRelevance = themes.Average(t => t.RelevanceScore);
+            run.AverageThemeRelevance = Math.Round(
+                themes.Average(t => t.RelevanceScore),
+                3);
         }
 
-        // Calculate duplicate detection precision
-        run.DuplicateDetectionPrecision = 0.85; // Placeholder - would need manual validation
+        // -----------------------------
+        // Duplicate Detection Precision
+        // -----------------------------
+        if (clusters.Count > 0)
+        {
+            // Ignore single-item clusters because they do not
+            // provide meaningful duplicate grouping evaluation.
+            var validClusters = clusters
+                .Where(c => c.Items.Count > 1)
+                .ToList();
+
+            if (validClusters.Count > 0)
+            {
+                // Average similarity measures semantic cohesion.
+                var avgSimilarity = validClusters
+                    .Average(c => c.AverageSimilarity);
+
+                // Silhouette measures cluster separation quality.
+                var avgSilhouette = validClusters
+                    .Average(c => Math.Max(c.SilhouetteScore, 0));
+
+                // Cluster density bonus rewards larger cohesive clusters.
+                var densityBonus = Math.Min(
+                    validClusters.Average(c => c.Items.Count) / 5.0,
+                    0.15);
+
+                // Final weighted precision formula
+                run.DuplicateDetectionPrecision = Math.Round(
+                    Math.Min(
+                        1.0,
+                        (avgSimilarity * 0.5) +
+                        (avgSilhouette * 0.35) +
+                        densityBonus),
+                    3);
+            }
+            else
+            {
+                run.DuplicateDetectionPrecision = 0;
+            }
+        }
+
+        // -----------------------------
+        // Average Action Usefulness
+        // -----------------------------
+        var allRecommendations = _dbContext.ActionRecommendations
+            .Where(a => a.UsefulnessRating != null)
+            .ToList();
+
+        if (allRecommendations.Count > 0)
+        {
+            // Scale usefulness to 1-5 range
+            run.AverageActionUsefulness = Math.Round(
+                allRecommendations.Average(a => a.UsefulnessRating ?? 0),
+                3);
+        }
+        else
+        {
+            run.AverageActionUsefulness = 0;
+        }
     }
 
     private double CalculateImpactScore(Theme theme, List<FeedbackItem> items)

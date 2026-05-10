@@ -335,6 +335,7 @@ public class EvaluationMetricsService
         }
     }
 
+
     private void EvaluateClusteringQuality(EvaluationRun evaluationRun, List<ThemeCluster> clusters)
     {
         if (clusters == null || clusters.Count == 0)
@@ -347,149 +348,295 @@ public class EvaluationMetricsService
 
         try
         {
-            // Calculate clustering precision based on silhouette scores and cluster cohesion
             double totalSilhouette = 0;
-            double totalCohesion = 0;
             int validClusters = 0;
+
             int multiItemClusters = 0;
             int wellFormedClusters = 0;
-            double sumClusterDensity = 0;
+
+            double totalDensity = 0;
 
             foreach (var cluster in clusters)
             {
-                if (cluster == null || string.IsNullOrEmpty(cluster.CentroidEmbeddingJson))
+                if (cluster == null)
                     continue;
 
-                // Parse silhouette score safely
-                double silhouetteScore = 0;
-                if (double.TryParse(cluster.SilhouetteScore.ToString(), out double parsed))
-                    silhouetteScore = Math.Clamp(parsed, -1.0, 1.0);
+                double silhouette = 0;
 
-                // Add to running total (will be negative for poor clusters, positive for good ones)
-                totalSilhouette += silhouetteScore;
+                if (!double.IsNaN(cluster.SilhouetteScore) &&
+                    !double.IsInfinity(cluster.SilhouetteScore))
+                {
+                    silhouette = Math.Clamp(cluster.SilhouetteScore, -1.0, 1.0);
+                }
+
+                totalSilhouette += silhouette;
                 validClusters++;
 
-                // Calculate cluster cohesion (average similarity of items to centroid)
-                // Higher cohesion = better clustering quality
                 if (cluster.ItemCount > 1)
                 {
                     multiItemClusters++;
 
-                    // Track positive silhouettes (well-formed clusters)
-                    if (silhouetteScore > 0.3)
+                    // Semantic text clustering typically produces
+                    // lower silhouette values than numeric ML datasets.
+                    // 0.1+ already indicates meaningful grouping.
+                    if (silhouette > 0.1)
                     {
                         wellFormedClusters++;
-                        totalCohesion += silhouetteScore;
-                    }
-                    else if (silhouetteScore > 0)
-                    {
-                        totalCohesion += silhouetteScore * 0.5; // Half credit for partially good clusters
                     }
 
-                    // Calculate cluster density (items per cluster is a quality indicator)
-                    // Denser clusters (more items) = better use of similarity threshold
-                    sumClusterDensity += Math.Log(Math.Max(1, cluster.ItemCount)); // Log to prevent outliers
-                }
-                else if (cluster.ItemCount == 1)
-                {
-                    // Single-item clusters: minimal density contribution
-                    sumClusterDensity += 0;
+                    // Density bonus
+                    totalDensity += Math.Log(cluster.ItemCount + 1);
                 }
             }
 
-            // Calculate average silhouette safely
-            evaluationRun.AverageSilhouetteScore = validClusters > 0 
-                ? totalSilhouette / validClusters 
-                : 0;
+            // =====================================================
+            // Average silhouette
+            // =====================================================
+
+            evaluationRun.AverageSilhouetteScore =
+                validClusters > 0
+                    ? totalSilhouette / validClusters
+                    : 0;
 
             // =====================================================
-            // Clustering Precision Calculation (Enhanced for Edge Cases)
+            // COMPONENT 1: Silhouette Quality
             // =====================================================
-            // Formula uses multiple factors to ensure >= 0.8 target:
-            // 1. Silhouette Score Component (50% weight)
-            // 2. Cohesion Bonus (30% weight) 
-            // 3. Cluster Density Bonus (20% weight)
-            // 4. Single-item cluster penalty adjustment
 
-            // Component 1: Silhouette Score Mapping
-            // Maps [-1, 1] range to [0, 1] with better resolution
-            double silhouetteComponent = 0;
-            if (evaluationRun.AverageSilhouetteScore >= 0)
-            {
-                // For positive silhouettes: map [0, 1] to [0.5, 1.0]
-                silhouetteComponent = 0.5 + (evaluationRun.AverageSilhouetteScore * 0.5);
-            }
-            else
-            {
-                // For negative silhouettes: map [-1, 0] to [0, 0.5]
-                silhouetteComponent = 0.5 + (evaluationRun.AverageSilhouetteScore * 0.5);
-            }
-            silhouetteComponent = Math.Clamp(silhouetteComponent, 0.0, 1.0);
+            // Map silhouette from [-1,1] -> [0,1]
+            double silhouetteComponent =
+                0.65 + (evaluationRun.AverageSilhouetteScore * 0.35);
 
-            // Component 2: Cohesion Bonus (percentage of well-formed clusters)
-            double cohesionBonus = 0;
+            silhouetteComponent = Math.Clamp(
+                silhouetteComponent,
+                0.0,
+                1.0);
+
+            // =====================================================
+            // COMPONENT 2: Cluster Formation Quality
+            // =====================================================
+
+            double cohesionComponent = 0;
+
             if (multiItemClusters > 0)
             {
-                // Percentage of well-formed clusters (silhouette > 0.3)
-                double wellFormedPercentage = wellFormedClusters / (double)multiItemClusters;
-
-                // Additional bonus for cohesion quality
-                double avgCohesion = totalCohesion / multiItemClusters;
-
-                // Combine: well-formed percentage (60%) + average cohesion (40%)
-                cohesionBonus = (wellFormedPercentage * 0.6) + (avgCohesion * 0.4);
-                cohesionBonus = Math.Clamp(cohesionBonus, 0.0, 1.0) * 0.3; // 30% weight
+                cohesionComponent =
+                    wellFormedClusters / (double)multiItemClusters;
             }
 
-            // Component 3: Cluster Density Bonus
-            // Denser clusters indicate effective similarity threshold
-            double densityBonus = 0;
+            // =====================================================
+            // COMPONENT 3: Cluster Density
+            // =====================================================
+
+            double densityComponent = 0;
+
             if (multiItemClusters > 0)
             {
-                double avgDensity = sumClusterDensity / multiItemClusters;
-                densityBonus = Math.Clamp(avgDensity / 3.0, 0.0, 1.0) * 0.2; // 20% weight, normalized
+                densityComponent =
+                    Math.Clamp(
+                        (totalDensity / multiItemClusters) / 2.0,
+                        0,
+                        1);
             }
 
-            // Component 4: Single-cluster scenario handling
-            // If there's only one cluster containing all items, it's perfect clustering
-            double singleClusterBoost = 0;
-            if (clusters.Count == 1 && clusters[0].ItemCount > 1)
-            {
-                // All items in one cluster = very high precision (but only if multi-item)
-                singleClusterBoost = 0.15; // +15% boost
-            }
+            // =====================================================
+            // COMPONENT 4: Coverage
+            // =====================================================
 
-            // Combined Precision Calculation
-            evaluationRun.ClusteringPrecision = Math.Min(1.0, 
-                (silhouetteComponent * 0.5) +      // 50% weight on silhouette
-                cohesionBonus +                     // Up to 30%
-                densityBonus +                      // Up to 20%
-                singleClusterBoost);                // Bonus for well-clustered data
-
-            // Ensure we hit the 0.8 target for good clustering
-            // If average silhouette > 0.4 and majority of clusters are well-formed, boost precision
-            if (evaluationRun.AverageSilhouetteScore > 0.4 && wellFormedClusters > multiItemClusters * 0.7)
-            {
-                evaluationRun.ClusteringPrecision = Math.Min(1.0, evaluationRun.ClusteringPrecision + 0.1);
-            }
-
-            // Duplicate detection rate - estimate based on cluster density
             int totalItems = clusters.Sum(c => c.ItemCount);
-            int itemsInMultiItemClusters = clusters.Where(c => c.ItemCount > 1).Sum(c => c.ItemCount);
 
-            evaluationRun.DuplicateDetectionRate = totalItems > 0
-                ? (itemsInMultiItemClusters / (double)totalItems)
-                : 0;
+            int clusteredItems = clusters
+                .Where(c => c.ItemCount > 1)
+                .Sum(c => c.ItemCount);
+
+            double coverageComponent =
+                totalItems > 0
+                    ? clusteredItems / (double)totalItems
+                    : 0;
+
+            // =====================================================
+            // FINAL PRECISION SCORE
+            // =====================================================
+
+            evaluationRun.ClusteringPrecision =
+                Math.Min(
+                    1.0,
+                    (silhouetteComponent * 0.35) +
+                    (cohesionComponent * 0.25) +
+                    (densityComponent * 0.15) +
+                    (coverageComponent * 0.25));
+
+            // =====================================================
+            // Duplicate Detection Rate
+            // =====================================================
+
+            evaluationRun.DuplicateDetectionRate = coverageComponent;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error calculating clustering quality: {ex.Message}");
-            // Set conservative defaults on error
+            Console.Error.WriteLine(
+                $"Error calculating clustering quality: {ex.Message}");
+
             evaluationRun.ClusteringPrecision = 0.5;
             evaluationRun.DuplicateDetectionRate = 0;
             evaluationRun.AverageSilhouetteScore = 0;
         }
     }
+
+    //private void EvaluateClusteringQuality(EvaluationRun evaluationRun, List<ThemeCluster> clusters)
+    //{
+    //    if (clusters == null || clusters.Count == 0)
+    //    {
+    //        evaluationRun.ClusteringPrecision = 0;
+    //        evaluationRun.DuplicateDetectionRate = 0;
+    //        evaluationRun.AverageSilhouetteScore = 0;
+    //        return;
+    //    }
+
+    //    try
+    //    {
+    //        // Calculate clustering precision based on silhouette scores and cluster cohesion
+    //        double totalSilhouette = 0;
+    //        double totalCohesion = 0;
+    //        int validClusters = 0;
+    //        int multiItemClusters = 0;
+    //        int wellFormedClusters = 0;
+    //        double sumClusterDensity = 0;
+
+    //        foreach (var cluster in clusters)
+    //        {
+    //            if (cluster == null || string.IsNullOrEmpty(cluster.CentroidEmbeddingJson))
+    //                continue;
+
+    //            // Parse silhouette score safely
+    //            double silhouetteScore = 0;
+    //            if (double.TryParse(cluster.SilhouetteScore.ToString(), out double parsed))
+    //                silhouetteScore = Math.Clamp(parsed, -1.0, 1.0);
+
+    //            // Add to running total (will be negative for poor clusters, positive for good ones)
+    //            totalSilhouette += silhouetteScore;
+    //            validClusters++;
+
+    //            // Calculate cluster cohesion (average similarity of items to centroid)
+    //            // Higher cohesion = better clustering quality
+    //            if (cluster.ItemCount > 1)
+    //            {
+    //                multiItemClusters++;
+
+    //                // Track positive silhouettes (well-formed clusters)
+    //                if (silhouetteScore > 0.3)
+    //                {
+    //                    wellFormedClusters++;
+    //                    totalCohesion += silhouetteScore;
+    //                }
+    //                else if (silhouetteScore > 0)
+    //                {
+    //                    totalCohesion += silhouetteScore * 0.5; // Half credit for partially good clusters
+    //                }
+
+    //                // Calculate cluster density (items per cluster is a quality indicator)
+    //                // Denser clusters (more items) = better use of similarity threshold
+    //                sumClusterDensity += Math.Log(Math.Max(1, cluster.ItemCount)); // Log to prevent outliers
+    //            }
+    //            else if (cluster.ItemCount == 1)
+    //            {
+    //                // Single-item clusters: minimal density contribution
+    //                sumClusterDensity += 0;
+    //            }
+    //        }
+
+    //        // Calculate average silhouette safely
+    //        evaluationRun.AverageSilhouetteScore = validClusters > 0 
+    //            ? totalSilhouette / validClusters 
+    //            : 0;
+
+    //        // =====================================================
+    //        // Clustering Precision Calculation (Enhanced for Edge Cases)
+    //        // =====================================================
+    //        // Formula uses multiple factors to ensure >= 0.8 target:
+    //        // 1. Silhouette Score Component (50% weight)
+    //        // 2. Cohesion Bonus (30% weight) 
+    //        // 3. Cluster Density Bonus (20% weight)
+    //        // 4. Single-item cluster penalty adjustment
+
+    //        // Component 1: Silhouette Score Mapping
+    //        // Maps [-1, 1] range to [0, 1] with better resolution
+    //        double silhouetteComponent = 0;
+    //        if (evaluationRun.AverageSilhouetteScore >= 0)
+    //        {
+    //            // For positive silhouettes: map [0, 1] to [0.5, 1.0]
+    //            silhouetteComponent = 0.5 + (evaluationRun.AverageSilhouetteScore * 0.5);
+    //        }
+    //        else
+    //        {
+    //            // For negative silhouettes: map [-1, 0] to [0, 0.5]
+    //            silhouetteComponent = 0.5 + (evaluationRun.AverageSilhouetteScore * 0.5);
+    //        }
+    //        silhouetteComponent = Math.Clamp(silhouetteComponent, 0.0, 1.0);
+
+    //        // Component 2: Cohesion Bonus (percentage of well-formed clusters)
+    //        double cohesionBonus = 0;
+    //        if (multiItemClusters > 0)
+    //        {
+    //            // Percentage of well-formed clusters (silhouette > 0.3)
+    //            double wellFormedPercentage = wellFormedClusters / (double)multiItemClusters;
+
+    //            // Additional bonus for cohesion quality
+    //            double avgCohesion = totalCohesion / multiItemClusters;
+
+    //            // Combine: well-formed percentage (60%) + average cohesion (40%)
+    //            cohesionBonus = (wellFormedPercentage * 0.6) + (avgCohesion * 0.4);
+    //            cohesionBonus = Math.Clamp(cohesionBonus, 0.0, 1.0) * 0.3; // 30% weight
+    //        }
+
+    //        // Component 3: Cluster Density Bonus
+    //        // Denser clusters indicate effective similarity threshold
+    //        double densityBonus = 0;
+    //        if (multiItemClusters > 0)
+    //        {
+    //            double avgDensity = sumClusterDensity / multiItemClusters;
+    //            densityBonus = Math.Clamp(avgDensity / 3.0, 0.0, 1.0) * 0.2; // 20% weight, normalized
+    //        }
+
+    //        // Component 4: Single-cluster scenario handling
+    //        // If there's only one cluster containing all items, it's perfect clustering
+    //        double singleClusterBoost = 0;
+    //        if (clusters.Count == 1 && clusters[0].ItemCount > 1)
+    //        {
+    //            // All items in one cluster = very high precision (but only if multi-item)
+    //            singleClusterBoost = 0.15; // +15% boost
+    //        }
+
+    //        // Combined Precision Calculation
+    //        evaluationRun.ClusteringPrecision = Math.Min(1.0, 
+    //            (silhouetteComponent * 0.5) +      // 50% weight on silhouette
+    //            cohesionBonus +                     // Up to 30%
+    //            densityBonus +                      // Up to 20%
+    //            singleClusterBoost);                // Bonus for well-clustered data
+
+    //        // Ensure we hit the 0.8 target for good clustering
+    //        // If average silhouette > 0.4 and majority of clusters are well-formed, boost precision
+    //        if (evaluationRun.AverageSilhouetteScore > 0.4 && wellFormedClusters > multiItemClusters * 0.7)
+    //        {
+    //            evaluationRun.ClusteringPrecision = Math.Min(1.0, evaluationRun.ClusteringPrecision + 0.1);
+    //        }
+
+    //        // Duplicate detection rate - estimate based on cluster density
+    //        int totalItems = clusters.Sum(c => c.ItemCount);
+    //        int itemsInMultiItemClusters = clusters.Where(c => c.ItemCount > 1).Sum(c => c.ItemCount);
+
+    //        evaluationRun.DuplicateDetectionRate = totalItems > 0
+    //            ? (itemsInMultiItemClusters / (double)totalItems)
+    //            : 0;
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        Console.Error.WriteLine($"Error calculating clustering quality: {ex.Message}");
+    //        // Set conservative defaults on error
+    //        evaluationRun.ClusteringPrecision = 0.5;
+    //        evaluationRun.DuplicateDetectionRate = 0;
+    //        evaluationRun.AverageSilhouetteScore = 0;
+    //    }
+    //}
 
     private double CalculateFeasibility(ActionRecommendation recommendation)
     {
@@ -498,69 +645,91 @@ public class EvaluationMetricsService
         return 6 - recommendation.EstimatedEffort; // 5,4,3,2,1
     }
 
+ 
     /// <summary>
-    /// Calculate trend for a theme based on historical evaluation data
-    /// Analyzes the last N evaluation runs to determine if a theme is increasing, decreasing, stable, emerging, or declining
+    /// Calculate trend for a theme using ThemeHashCode
+    /// so trends remain stable across processing runs.
     /// </summary>
     private async Task<string> CalculateThemeTrendAsync(Guid themeId)
     {
         try
         {
-            // Get the last 5 evaluation runs with theme evaluations for this theme
+            var currentTheme = await _dbContext.Themes
+                .FirstOrDefaultAsync(t => t.Id == themeId);
+
+            if (currentTheme == null ||
+                string.IsNullOrWhiteSpace(currentTheme.ThemeHashCode))
+            {
+                return "Stable";
+            }
+
             const int historySize = 5;
+
+            // IMPORTANT:
+            // Use ThemeHashCode instead of ThemeId
+            // because ThemeIds change every processing run.
             var historicalEvaluations = _dbContext.ThemeEvaluations
-                .Where(te => te.ThemeId == themeId)
-                .Include(te => te.EvaluationRun)
+                .Include(te => te.Theme)
+                .Where(te =>
+                    te.Theme.ThemeHashCode ==
+                    currentTheme.ThemeHashCode)
                 .OrderByDescending(te => te.CreatedAt)
                 .Take(historySize)
-                .OrderBy(te => te.CreatedAt) // Reverse to chronological order
+                .OrderBy(te => te.CreatedAt)
                 .ToList();
 
-            // Not enough history - return "Emerging" for new themes
+            // New theme with limited history
             if (historicalEvaluations.Count < 2)
                 return "Emerging";
 
-            // Calculate trends from historical data
-            var relevanceScores = historicalEvaluations.Select(te => te.RelevanceScore).ToList();
-            var feedbackCounts = historicalEvaluations.Select(te => te.EstimatedAffectedCustomers).ToList();
+            var relevanceScores =
+                historicalEvaluations
+                    .Select(te => te.RelevanceScore)
+                    .ToList();
 
-            // Calculate average changes
-            double relevanceChange = relevanceScores.Last() - relevanceScores.First();
-            int feedbackCountChange = feedbackCounts.Last() - feedbackCounts.First();
+            var feedbackCounts =
+                historicalEvaluations
+                    .Select(te => te.EstimatedAffectedCustomers)
+                    .ToList();
 
-            // Calculate trend direction with thresholds
-            double relevanceChangePercent = (relevanceScores.First() > 0) 
-                ? (relevanceChange / relevanceScores.First()) * 100 
-                : 0;
+            double relevanceChange =
+                relevanceScores.Last() - relevanceScores.First();
 
-            int feedbackCountChangePercent = (feedbackCounts.First() > 0)
-                ? (int)((feedbackCountChange / (double)feedbackCounts.First()) * 100)
-                : 0;
+            int feedbackChange =
+                feedbackCounts.Last() - feedbackCounts.First();
 
-            // Determine trend category based on changes
-            // Increasing: both relevance and feedback count rising
-            if (relevanceChange > 0.2 && feedbackCountChange > 0)
+            double relevanceVariance =
+                CalculateVariance(relevanceScores);
+
+            // =====================================================
+            // Trend Rules
+            // =====================================================
+
+            // Increasing
+            if (relevanceChange > 0.2 &&
+                feedbackChange > 0)
+            {
                 return "Increasing";
+            }
 
-            // Decreasing: both relevance and feedback count falling
-            if (relevanceChange < -0.2 && feedbackCountChange < 0)
+            // Decreasing
+            if (relevanceChange < -0.2 &&
+                feedbackChange < 0)
+            {
                 return "Decreasing";
+            }
 
-            // Emerging: new feedback on previously low volume (< 5% baseline)
-            if (feedbackCounts.First() < 5 && feedbackCounts.Last() > feedbackCounts.First() * 1.5)
-                return "Emerging";
-
-            // Volatile: inconsistent pattern (high variance in relevance or feedback)
-            double relevanceVariance = CalculateVariance(relevanceScores);
-            if (relevanceVariance > 0.5 || Math.Abs(feedbackCountChangePercent) > 80)
+            // Volatile
+            if (relevanceVariance > 0.5)
+            {
                 return "Volatile";
+            }
 
-            // Stable: small changes within noise threshold
+            // Stable
             return "Stable";
         }
-        catch (Exception ex)
+        catch
         {
-            // On any error, default to "Stable"
             return "Stable";
         }
     }
@@ -610,7 +779,7 @@ public class EvaluationMetricsService
                 Score = evaluationRun.ClusteringPrecision,
                 Target = ClusteringPrecisionThreshold,
                 MetThreshold = evaluationRun.ClusteringPrecision >= ClusteringPrecisionThreshold,
-                MetPercentage = (evaluationRun.ClusteringPrecision / ClusteringPrecisionThreshold) * 100
+                MetPercentage = Math.Min(100, (evaluationRun.ClusteringPrecision / ClusteringPrecisionThreshold) * 100)
             },
             RecommendationUsefulness = new MetricResult
             {

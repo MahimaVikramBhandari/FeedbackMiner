@@ -297,7 +297,6 @@ public class RunPipelineRequest
 {
     public string RunName { get; set; }
     public bool ProcessAllFeedback { get; set; } = false;
-    // ClusterSimilarityThreshold removed - uses fixed optimal value (0.65)
 }
 
 public class RescanRequest

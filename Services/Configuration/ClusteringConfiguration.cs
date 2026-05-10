@@ -11,19 +11,14 @@ public static class ClusteringConfiguration
     /// <summary>
     /// Primary clustering threshold for theme extraction
     /// 
-    /// Value: 0.65 (65% similarity)
+    /// Value: 0.70 (70% similarity)
     /// Rationale:
     /// - 0.50: Too loose - produces massive clusters, poor precision
-    /// - 0.65: OPTIMAL - balances tight clustering with relevant grouping
-    /// - 0.75: Too tight - fragments related feedback into separate clusters
+    /// - 0.70: OPTIMAL - balances tight clustering with relevant grouping
+    /// - 0.80: Too tight - fragments related feedback into separate clusters
     /// 
-    /// This threshold ensures:
-    /// ✅ Silhouette scores high enough for Clustering Precision >= 0.8
-    /// ✅ Cohesion bonus for well-formed clusters
-    /// ✅ Quality multipliers boost recommendation usefulness
-    /// ✅ Theme relevance scores remain above 4.0
     /// </summary>
-    public const double ClusteringThreshold = 0.65;
+    public const double ClusteringThreshold = 0.55;
 
     /// <summary>
     /// High-similarity threshold for strict duplicate detection
@@ -33,7 +28,7 @@ public static class ClusteringConfiguration
     /// - Used to identify near-identical feedback items
     /// - Only matches items with very high semantic similarity
     /// - Separate from main clustering threshold to allow:
-    ///   * Main clustering at 0.65 for related items
+    ///   * Main clustering at 0.70 for related items
     ///   * Duplicate detection at 0.85 for nearly identical items
     /// </summary>
     public const double DuplicateDetectionThreshold = 0.85;

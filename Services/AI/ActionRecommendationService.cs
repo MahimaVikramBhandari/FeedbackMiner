@@ -48,50 +48,51 @@ public class ActionRecommendationService
                 : "";
 
             var jsonFormat = @"{
-  ""title"": ""..."",
-  ""description"": ""..."",
-  ""category"": ""..."",
-  ""priority"": ""..."",
-  ""estimatedEffort"": 1,
-  ""impactScore"": 1,
-  ""affectedAreas"": ""..."",
-  ""benefitSegments"": ""...""
-}";
+                                  ""title"": ""..."",
+                                  ""description"": ""..."",
+                                  ""category"": ""..."",
+                                  ""priority"": ""..."",
+                                  ""estimatedEffort"": 1,
+                                  ""impactScore"": 1,
+                                  ""affectedAreas"": ""..."",
+                                  ""benefitSegments"": ""...""
+                                }";
 
             var userPrompt = $@"Generate 3-5 concrete action recommendations to address this customer feedback theme:
 
-Theme: {theme.Label}
-Description: {theme.Description}
-Feedback count: {relatedItems.Count}
-Average urgency: {(relatedItems.Any() ? relatedItems.Average(f => f.UrgencyScore ?? 0) : 0):F2}
-Average sentiment: {(relatedItems.Any() ? relatedItems.Average(f => f.SentimentScore ?? 0) : 0):F2}
+                                Theme: {theme.Label}
+                                Description: {theme.Description}
+                                Feedback count: {relatedItems.Count}
+                                Average urgency: {(relatedItems.Any() ? relatedItems.Average(f => f.UrgencyScore ?? 0) : 0):F2}
+                                Average sentiment: {(relatedItems.Any() ? relatedItems.Average(f => f.SentimentScore ?? 0) : 0):F2}
 
-Sample feedback:
-{sampleFeedback}{featuresContext}
+                                Sample feedback:
+                                {sampleFeedback}{featuresContext}
 
-For each recommendation, provide:
-1. A clear, actionable title
-2. Detailed description of the action
-3. Category (Bug Fix, Feature Request, Process Improvement, UI/UX Enhancement, Documentation)
-4. Priority (Low, Medium, High, Critical)
-5. Estimated effort level (1-5)
-6. Potential impact score (1-5)
-7. Affected product areas (comma-separated list)
-8. Customer segments that would benefit (comma-separated list)
+                                For each recommendation, provide:
+                                1. A clear, actionable title
+                                2. Detailed description of the action
+                                3. Category (Bug Fix, Feature Request, Process Improvement, UI/UX Enhancement, Documentation)
+                                4. Priority (Low, Medium, High, Critical)
+                                5. Estimated effort level (1-5)
+                                6. Potential impact score (1-5)
+                                7. Affected product areas (comma-separated list)
+                                8. Customer segments that would benefit (comma-separated list)
 
-Format each recommendation as JSON:
-{jsonFormat}
+                                Format each recommendation as JSON:
+                                {jsonFormat}
 
-Return all recommendations as a JSON array.";
+                                Return all recommendations as a JSON array.";
 
             var chatClient = _client.GetChatClient("gpt-4.1-mini");
+            var options = new ChatCompletionOptions { Temperature = 0.2f };
 
             var response = await chatClient.CompleteChatAsync(
                 new List<ChatMessage>
                 {
                     ChatMessage.CreateSystemMessage(@"You are an expert product manager. Generate actionable recommendations based on customer feedback themes. Always return valid JSON arrays."),
                     ChatMessage.CreateUserMessage(userPrompt)
-                }
+                }, options
             );
 
             var resultText = response?.Value?.Content?[0]?.Text;
@@ -133,6 +134,7 @@ Return all recommendations as a JSON array.";
             }
 
             var chatClient = _client.GetChatClient("gpt-4.1-mini");
+            var options = new ChatCompletionOptions { Temperature = 0.2f };
 
             // Build comprehensive feedback summary
             var feedbackSummary = relatedItems.Count > 5
@@ -140,38 +142,38 @@ Return all recommendations as a JSON array.";
                 : string.Join("\n", relatedItems.Select((f, i) => $"{i + 1}. {f.ProcessedText}"));
 
             var systemPrompt = @"You are an expert product manager evaluating recommendations. Rate the usefulness of an action recommendation considering:
-- How comprehensively it addresses the customer feedback
-- Number of affected customers
-- Feasibility and effort required
-- Potential business impact
-- Risk-reward ratio
+                                - How comprehensively it addresses the customer feedback
+                                - Number of affected customers
+                                - Feasibility and effort required
+                                - Potential business impact
+                                - Risk-reward ratio
 
-Be objective and base scoring on evidence in the feedback.
+                                Be objective and base scoring on evidence in the feedback.
 
-Return ONLY a JSON object:
-{
-  ""usefulnessScore"": 3.5,
-  ""reasoning"": ""brief explanation""
-}";
+                                Return ONLY a JSON object:
+                                {
+                                  ""usefulnessScore"": 3.5,
+                                  ""reasoning"": ""brief explanation""
+                                }";
 
-            var userPrompt = $@"Recommendation: {recommendation.Title}
-Category: {recommendation.Category}
-Priority: {recommendation.Priority}
-Estimated Effort: {recommendation.EstimatedEffort}/5
-Impact Score: {recommendation.ImpactScore}/5
+                                            var userPrompt = $@"Recommendation: {recommendation.Title}
+                                Category: {recommendation.Category}
+                                Priority: {recommendation.Priority}
+                                Estimated Effort: {recommendation.EstimatedEffort}/5
+                                Impact Score: {recommendation.ImpactScore}/5
 
-Number of customer feedback items: {relatedItems.Count}
-Feedback samples:
-{feedbackSummary}
+                                Number of customer feedback items: {relatedItems.Count}
+                                Feedback samples:
+                                {feedbackSummary}
 
-Rate the usefulness (1-5) of implementing this recommendation based on the above feedback:";
+                                Rate the usefulness (1-5) of implementing this recommendation based on the above feedback:";
 
             var response = await chatClient.CompleteChatAsync(
                 new List<ChatMessage>
                 {
                     ChatMessage.CreateSystemMessage(systemPrompt),
                     ChatMessage.CreateUserMessage(userPrompt)
-                }
+                },options
             );
 
             var resultText = response?.Value?.Content?[0]?.Text;

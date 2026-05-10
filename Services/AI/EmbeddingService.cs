@@ -101,30 +101,82 @@ public class EmbeddingService
         return JsonSerializer.Deserialize<float[]>(json);
     }
 
-    /// <summary>
-    /// Calculate centroid of multiple embeddings
-    /// </summary>
+    ///// <summary>
+    ///// Calculate centroid of multiple embeddings
+    ///// </summary>
+    //public float[] CalculateCentroid(List<float[]> embeddings)
+    //{
+    //    if (embeddings.Count == 0)
+    //        throw new ArgumentException("Embeddings list cannot be empty");
+
+    //    var dimension = embeddings[0].Length;
+    //    var centroid = new float[dimension];
+
+    //    foreach (var embedding in embeddings)
+    //    {
+    //        for (int i = 0; i < dimension; i++)
+    //        {
+    //            centroid[i] += embedding[i];
+    //        }
+    //    }
+
+    //    for (int i = 0; i < dimension; i++)
+    //    {
+    //        centroid[i] /= embeddings.Count;
+    //    }
+
+    //    return centroid;
+    //}
+
+
     public float[] CalculateCentroid(List<float[]> embeddings)
     {
-        if (embeddings.Count == 0)
+        if (embeddings == null || embeddings.Count == 0)
             throw new ArgumentException("Embeddings list cannot be empty");
 
-        var dimension = embeddings[0].Length;
+        int dimension = embeddings[0].Length;
+
         var centroid = new float[dimension];
 
+        // Sum all vectors
         foreach (var embedding in embeddings)
         {
+            if (embedding.Length != dimension)
+                throw new ArgumentException("All embeddings must have same dimension");
+
             for (int i = 0; i < dimension; i++)
             {
                 centroid[i] += embedding[i];
             }
         }
 
+        // Average vectors
         for (int i = 0; i < dimension; i++)
         {
             centroid[i] /= embeddings.Count;
         }
 
+        // Normalize centroid vector
+        double norm = 0;
+
+        for (int i = 0; i < dimension; i++)
+        {
+            norm += centroid[i] * centroid[i];
+        }
+
+        norm = Math.Sqrt(norm);
+
+        const double epsilon = 1e-10;
+
+        if (norm > epsilon)
+        {
+            for (int i = 0; i < dimension; i++)
+            {
+                centroid[i] = (float)(centroid[i] / norm);
+            }
+        }
+
         return centroid;
     }
+
 }

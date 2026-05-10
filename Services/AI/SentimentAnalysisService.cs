@@ -28,22 +28,31 @@ public class SentimentAnalysisService
             throw new ArgumentException("Feedback text cannot be empty", nameof(feedbackText));
 
         var chatClient = _client.GetChatClient("gpt-4.1-mini");
+        var options = new ChatCompletionOptions { Temperature = 0.2f };
 
         var systemPrompt = @"Analyze the sentiment and urgency level of the given feedback.
 
-Return a JSON object with exactly these fields:
-{
-  ""sentimentScore"": <number between -1 (very negative) and 1 (very positive)>,
-  ""sentimentLabel"": ""Positive"" | ""Negative"" | ""Neutral"",
-  ""urgencyScore"": <number between 0 (not urgent) and 1 (very urgent)>,
-  ""urgencyLevel"": ""Low"" | ""Medium"" | ""High"" | ""Critical"",
-  ""reasoning"": ""brief explanation"",
-  ""keywords"": [""list"", ""of"", ""key"", ""indicators""]
-}
+                            Return a JSON object with exactly these fields:
+                            {
+                              ""sentimentScore"": <number between -1 (very negative) and 1 (very positive)>,
+                              ""sentimentLabel"": ""Positive"" | ""Negative"" | ""Neutral"",
+                              ""urgencyScore"": <number between 0 (not urgent) and 1 (very urgent)>,
+                              ""urgencyLevel"": ""Low"" | ""Medium"" | ""High"" | ""Critical"",
+                              ""reasoning"": ""brief explanation"",
+                              ""keywords"": [""list"", ""of"", ""key"", ""indicators""]
+                            }
 
-Consider:
-- For sentiment: tone, complaint language, praise, satisfaction indicators
-- For urgency: mentions of outages, system down, critical issues, deadlines, financial impact, customer churn risk";
+                            Consider:
+                            - For sentiment: tone, complaint language, praise, satisfaction indicators
+                            - For urgency: mentions of outages, system down, critical issues, deadlines, financial impact, customer churn risk
+                            - If feedback contains multiple issues, identify all major concerns 
+                            - Return consistent scoring for semantically similar feedback 
+                            - Focus on business impact and customer experience severity 
+
+                            Guidelines: 
+                            - Use Neutral only when sentiment is genuinely balanced 
+                            - Use Critical urgency only for severe operational or financial impact 
+                            - Keep reasoning concise and objective";
 
         var userPrompt = $"Analyze this feedback:\n\n{feedbackText}";
         if (!string.IsNullOrEmpty(context))
@@ -54,7 +63,7 @@ Consider:
             {
                 ChatMessage.CreateSystemMessage(systemPrompt),
                 ChatMessage.CreateUserMessage(userPrompt)
-            }
+            },options
         );
 
         var resultText = response.Value.Content[0].Text;
