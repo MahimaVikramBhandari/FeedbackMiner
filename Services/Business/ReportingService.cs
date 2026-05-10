@@ -70,7 +70,7 @@ public class ReportingService
     /// </summary>
     public async Task<WeeklyDigestDto> GetWeeklyDigestAsync(DateTime? weekStart = null)
     {
-        weekStart = weekStart ?? DateTime.UtcNow.AddDays(-(int)DateTime.UtcNow.DayOfWeek);
+        weekStart = weekStart ?? DateTime.UtcNow.Date;
         var weekEnd = weekStart.Value.AddDays(7);
 
         var weeklyFeedback = _dbContext.FeedbackItems
