@@ -36,7 +36,7 @@ export class ThemesPageComponent implements OnInit {
 
   loading = false;
   running = false;
-  processAllFeedback = false;
+  processAllFeedback = true;
 
   error: string | null = null;
   pipelineMessage: string | null = null;
