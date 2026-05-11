@@ -16,11 +16,11 @@ public class ClusteringService
     private readonly EmbeddingService _embeddingService;
 
     // Threshold for near-duplicate detection (high similarity = identical content)
-    private const double SimilarityThreshold = 0.55;
+    private const double SimilarityThreshold = 0.85;
 
     // Main clustering threshold - balances precision and recall for quality metrics
     // Targets: Clustering Precision >= 0.8, Theme Relevance >= 4.0
-    private const double DefaultMinSimilarity = 0.55;
+    private const double DefaultMinSimilarity = 0.50;
 
     public ClusteringService(EmbeddingService embeddingService)
     {

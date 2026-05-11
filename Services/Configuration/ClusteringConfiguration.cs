@@ -8,7 +8,7 @@
 /// </summary>
 public static class ClusteringConfiguration
 {
-    public const double ClusteringThreshold = 0.45;
+    public const double ClusteringThreshold = 0.50;
 
     public const double DuplicateDetectionThreshold = 0.85;
 
@@ -120,15 +120,15 @@ public static class ClusteringConfiguration
     {
         return threshold switch
         {
-            <= 0.45 => "Very Loose (broad semantic grouping)",
+            <= 0.40 => "Very Loose (broad topic grouping)",
 
-            <= 0.55 => "Balanced (recommended for feedback clustering)",
+            <= 0.50 => "Balanced (recommended for semantic feedback clustering)",
 
-            <= 0.65 => "Focused (high semantic similarity)",
+            <= 0.60 => "Focused (closely related feedback)",
 
-            <= 0.75 => "Strict (near-duplicate feedback)",
+            <= 0.75 => "Strict (high similarity feedback)",
 
-            _ => "Very Strict (almost identical feedback)"
+            _ => "Very Strict (near-duplicate feedback only)"
         };
     }
 

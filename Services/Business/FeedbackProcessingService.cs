@@ -43,7 +43,7 @@ public class FeedbackProcessingService
     public async Task<ProcessingRun> RunFullPipelineAsync(
         List<FeedbackItem> feedbackItems,
         string runName = null,
-        double clusterSimilarityThreshold = 0.55)
+        double clusterSimilarityThreshold = 0.50)
     {
         if (feedbackItems.Count == 0)
             throw new ArgumentException("No feedback items to process", nameof(feedbackItems));
