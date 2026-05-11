@@ -1,0 +1,223 @@
+<div class="page-shell">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Analysis</p>
+      <h1>Themes</h1>
+    </div>
+
+    <div class="actions">
+      <div class="run-analysis-card">
+        <mat-radio-group
+          class="process-mode"
+          [(ngModel)]="processAllFeedback"
+          [disabled]="running"
+          aria-label="Process all feedback">
+          <mat-radio-button
+            [value]="false"
+            matTooltip="Analyze feedback that has not been processed yet">
+            New only
+          </mat-radio-button>
+          <mat-radio-button
+            [value]="true"
+            matTooltip="Reprocess every feedback item, including existing themes">
+            All feedback
+          </mat-radio-button>
+        </mat-radio-group>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          [disabled]="running"
+          [matTooltip]="running ? getRunStatusText() : 'Start clustering, theme extraction, and recommendations'"
+          (click)="runPipeline()"
+        >
+          @if (running) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <mat-icon>play_arrow</mat-icon>
+          }
+          {{ running ? 'Running Analysis' : 'Run Analysis' }}
+        </button>
+      </div>
+
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="running"
+        matTooltip="Reload the latest themes without running analysis"
+        (click)="loadThemes()">
+        @if (loading) {
+          <mat-spinner diameter="16"></mat-spinner>
+        } @else {
+          <mat-icon>refresh</mat-icon>
+        }
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  @if (running) {
+    <mat-card class="running-card">
+      <mat-card-content>
+        <div>
+          <strong>Analysis is running</strong>
+          <span>{{ getRunStatusText() }}. Clustering, theme extraction, and recommendations can take a little time.</span>
+        </div>
+        <mat-spinner diameter="24"></mat-spinner>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <!-- ERROR -->
+  @if (error) {
+    <mat-card class="error-card">
+      <mat-card-content>{{ error }}</mat-card-content>
+    </mat-card>
+  }
+
+  <!-- SUCCESS -->
+  @if (pipelineMessage) {
+    <mat-card class="success-card">
+      <mat-card-content>{{ pipelineMessage }}</mat-card-content>
+    </mat-card>
+  }
+
+  <!-- LOADING -->
+  @if (loading) {
+    <div class="state-panel">
+      <mat-spinner diameter="42"></mat-spinner>
+    </div>
+  } @else if ((themes ?? []).length > 0) {
+
+    <div class="insight-grid">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Theme Performance</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+          @if (hasThemeChartData()) {
+            <div class="theme-chart">
+              <canvas
+                baseChart
+                [type]="'bar'"
+                [data]="themeChartData"
+                [options]="themeChartOptions">
+              </canvas>
+            </div>
+          } @else {
+            <p class="empty-text">Theme scores are not available yet.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Summary</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content class="summary-card-content">
+          <div class="summary-actions">
+            <button mat-stroked-button type="button" [disabled]="summaryLoading" (click)="summarize('Summarize cluster report')">
+              Cluster Report
+            </button>
+            <button mat-stroked-button type="button" [disabled]="summaryLoading" (click)="summarize('What is the average theme relevance?')">
+              Theme Relevance
+            </button>
+          </div>
+
+          @if (summaryLoading) {
+            <div class="summary-loading">
+              <mat-spinner diameter="22"></mat-spinner>
+              <span>Generating summary...</span>
+            </div>
+          }
+
+          @if (summaryError) {
+            <p class="summary-error">{{ summaryError }}</p>
+          }
+
+          @if (summaryText) {
+            <p class="summary-text">{{ summaryText }}</p>
+          } @else if (!summaryLoading) {
+            <p class="empty-text">Choose a summary type above.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- THEMES GRID -->
+    <div class="theme-grid">
+      @for (theme of themes; track theme.id) {
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>{{ theme.label }}</mat-card-title>
+            <mat-card-subtitle>
+              {{ theme.feedbackCount }} feedback items
+            </mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content>
+            <p>{{ theme.description || 'No description yet.' }}</p>
+
+            @if ((theme.affectedAreas ?? []).length > 0 || (theme.affectedSegments ?? []).length > 0) {
+              <div class="tag-list">
+                @for (area of theme.affectedAreas ?? []; track area) {
+                  <span>{{ area }}</span>
+                }
+                @for (segment of theme.affectedSegments ?? []; track segment) {
+                  <span>{{ segment }}</span>
+                }
+              </div>
+            }
+
+            <div class="score-grid">
+              <div>
+                <span>Impact</span>
+                <strong>{{ (theme.impactScore ?? 0).toFixed(1) }}</strong>
+              </div>
+
+              <div>
+                <span>Relevance</span>
+                <strong>{{ (theme.relevanceScore ?? 0).toFixed(1) }}</strong>
+              </div>
+
+              <div>
+                <span>Urgency</span>
+                <strong>{{ (theme.averageUrgencyScore ?? 0).toFixed(1) }}</strong>
+              </div>
+
+              <div>
+                <span>Sentiment</span>
+                <strong>{{ (theme.averageSentimentScore ?? 0).toFixed(1) }}</strong>
+              </div>
+            </div>
+
+            @if ((theme.topRecommendations ?? []).length > 0) {
+              <div class="recommendation-list">
+                @for (action of theme.topRecommendations; track action.id) {
+                  <article>
+                    <strong>{{ action.title }}</strong>
+                    <span>{{ action.category }} · {{ action.priority }} · impact {{ (action.impactScore ?? 0).toFixed(1) }}</span>
+                  </article>
+                }
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+
+  } @else {
+    <!-- EMPTY STATE -->
+    <mat-card>
+      <mat-card-content class="empty-state">
+        <h2>No themes yet</h2>
+        <p>
+          Add feedback, then run analysis to cluster feedback into themes.
+        </p>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

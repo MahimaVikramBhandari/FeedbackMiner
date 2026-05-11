@@ -1,0 +1,298 @@
+<div class="page-shell">
+
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Overview</p>
+      <h1>Dashboard</h1>
+    </div>
+
+    <button
+      mat-stroked-button
+      type="button"
+      matTooltip="Reload dashboard metrics, charts, and latest feedback"
+      (click)="loadDashboardData()">
+      @if (loading) {
+        <mat-spinner diameter="16"></mat-spinner>
+      } @else {
+        <mat-icon>refresh</mat-icon>
+      }
+      Refresh
+    </button>
+  </div>
+
+  <!-- LOADING -->
+  @if (loading) {
+    <div class="state-panel">
+      <mat-spinner diameter="42"></mat-spinner>
+      <p>Loading dashboard data...</p>
+    </div>
+  }
+
+  <!-- ERROR -->
+  @else if (error) {
+    <mat-card class="state-card error-card">
+      <mat-card-content>
+        <p>{{ error }}</p>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          matTooltip="Try loading the dashboard data again"
+          (click)="loadDashboardData()">
+          Retry
+        </button>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <!-- MAIN CONTENT -->
+  @else {
+
+    <!-- METRICS -->
+    <div class="metrics-grid">
+
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <span>Weekly Feedback</span>
+          <strong>{{ digest?.totalFeedbackReceived ?? totalFeedback }}</strong>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <span>Themes</span>
+          <strong>{{ themes?.length || 0 }}</strong>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card">
+        <mat-card-content>
+          <span>Avg Sentiment</span>
+          <strong>{{ ((averageSentiment || 0) * 100) | number:'1.0-0' }}%</strong>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card warning">
+        <mat-card-content>
+          <span>Critical Items</span>
+          <strong>{{ digest?.criticalUrgencyCount ?? highUrgencyCount }}</strong>
+        </mat-card-content>
+      </mat-card>
+
+    </div>
+
+    <div class="workspace-grid">
+      <div class="workspace-main">
+    <!-- GRID -->
+    <div class="insight-grid">
+
+      <!-- SENTIMENT -->
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title matTooltip="Breakdown of scanned feedback sentiment">Sentiment</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content class="sentiment-panel">
+          @if (hasSentimentData()) {
+            <div class="sentiment-chart">
+              <canvas
+                baseChart
+                [type]="'pie'"
+                [data]="sentimentChartData"
+                [options]="sentimentChartOptions">
+              </canvas>
+            </div>
+          } @else {
+            <p class="empty-text">No scanned sentiment yet.</p>
+          }
+
+          <div class="sentiment-summary">
+            <div class="sentiment-total">
+              <span>Scanned Feedback</span>
+              <strong>{{ positiveFeedback + neutralFeedback + negativeFeedback }}</strong>
+            </div>
+
+            <div class="sentiment-list">
+              <div><span class="dot positive"></span>Positive <strong>{{ positiveFeedback }}</strong></div>
+              <div><span class="dot neutral"></span>Neutral <strong>{{ neutralFeedback }}</strong></div>
+              <div><span class="dot negative"></span>Negative <strong>{{ negativeFeedback }}</strong></div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title matTooltip="Highest-impact themes found by analysis">Top Themes by Impact</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content class="theme-insight-content">
+
+          @if (themes.length > 0) {
+            @if (hasTopThemeChartData()) {
+              <div class="dashboard-chart theme-impact-chart">
+                <canvas
+                  baseChart
+                  [type]="'bar'"
+                  [data]="topThemesChartData"
+                  [options]="topThemesChartOptions">
+                </canvas>
+              </div>
+            }
+
+            <div class="theme-list compact">
+
+              @for (theme of themes.slice(0, 5); track theme.id) {
+                <div class="theme-row">
+                  <div>
+                    <strong>{{ theme.label }}</strong>
+                    <span>{{ theme.feedbackCount }} feedback items</span>
+                  </div>
+                  <b>{{ theme.impactScore?.toFixed(1) }}</b>
+                </div>
+              }
+
+            </div>
+          }
+
+          @else {
+            <p class="empty-text">
+              No themes yet. Run the analysis pipeline after adding feedback.
+            </p>
+          }
+
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title matTooltip="High-priority actions recommended from analyzed themes">Action Recommendations</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+          @if ((digest?.highPriorityActions ?? []).length > 0) {
+            <div class="action-list">
+              @for (action of digest!.highPriorityActions.slice(0, 5); track action.id) {
+                <div class="action-row">
+                  <span class="action-rank">{{ $index + 1 }}</span>
+
+                  <div class="action-body">
+                    <div class="action-title-row">
+                      <strong>{{ action.title }}</strong>
+                      <span class="priority-badge" [ngClass]="getPriorityClass(action.priority)">
+                        {{ action.priority || 'Priority' }}
+                      </span>
+                    </div>
+
+                    <div class="action-meta">
+                      <span>{{ action.category }}</span>
+                      <span>Impact {{ (action.impactScore ?? 0).toFixed(1) }}/5</span>
+                      <span>Effort {{ action.estimatedEffort ?? 0 }}/5</span>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="empty-text">No high-priority actions yet.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title matTooltip="Latest evaluation scores compared with quality targets">Evaluation Targets</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+          @if (hasEvaluationData()) {
+            <div class="evaluation-targets">
+              <div class="target-row" [class.met]="meetsTarget(getThemeRelevanceScore(), 4)">
+                <div class="target-row-header">
+                  <span>Theme relevance</span>
+                  <strong>{{ getThemeRelevanceScore().toFixed(1) }} / 5</strong>
+                </div>
+                <div class="target-track">
+                  <span class="target-fill" [style.width.%]="getMetricPercent(getThemeRelevanceScore(), 5)"></span>
+                  <span class="target-marker" [style.left.%]="getMetricPercent(4, 5)"></span>
+                </div>
+                <small>Target 4.0</small>
+              </div>
+
+              <div class="target-row" [class.met]="meetsTarget(getDuplicatePrecisionScore(), 0.8)">
+                <div class="target-row-header">
+                  <span>Duplicate precision</span>
+                  <strong>{{ getDuplicatePrecisionScore().toFixed(2) }}</strong>
+                </div>
+                <div class="target-track">
+                  <span class="target-fill" [style.width.%]="getMetricPercent(getDuplicatePrecisionScore(), 1)"></span>
+                  <span class="target-marker" [style.left.%]="getMetricPercent(0.8, 1)"></span>
+                </div>
+                <small>Target 0.80</small>
+              </div>
+
+              <div class="target-row" [class.met]="meetsTarget(getRecommendationQualityScore(), 4)">
+                <div class="target-row-header">
+                  <span>Action recommendation usefulness</span>
+                  <strong>{{ getRecommendationQualityScore().toFixed(1) }} / 5</strong>
+                </div>
+                <div class="target-track">
+                  <span class="target-fill" [style.width.%]="getMetricPercent(getRecommendationQualityScore(), 5)"></span>
+                  <span class="target-marker" [style.left.%]="getMetricPercent(4, 5)"></span>
+                </div>
+                <small>Target 4.0</small>
+              </div>
+            </div>
+          } @else {
+            <p class="empty-text">No evaluation targets yet.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- FEEDBACK -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Recent Feedback</mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+
+     @if (feedbackItems.length > 0) {
+          <div class="feedback-list">
+
+            @for (item of feedbackItems.slice(0, 5); track item.id) {
+              <div class="feedback-item" [ngClass]="getSentimentClass(item.sentimentLabel)">
+
+                <div class="feedback-header">
+                  <strong>{{ getDashboardSource(item.source) }}</strong>
+                </div>
+
+                <p>{{ getDashboardFeedbackText(item) }}</p>
+
+                <div class="feedback-meta">
+                  <span>{{ item.sentimentLabel || 'Unscanned' }}</span>
+                  <span>{{ item.productArea || 'No area' }}</span>
+                  <span>{{ item.createdAt | date:'mediumDate' }}</span>
+                </div>
+
+              </div>
+            }
+
+          </div>
+        }
+
+        @else {
+          <p class="empty-text">No feedback has been ingested yet.</p>
+        }
+
+      </mat-card-content>
+    </mat-card>
+      </div>
+
+    </div>
+
+  }
+
+</div>

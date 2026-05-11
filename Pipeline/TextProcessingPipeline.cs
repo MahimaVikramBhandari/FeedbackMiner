@@ -2,9 +2,9 @@
 {
     private readonly List<ITextProcessor> _processors;
 
-    public TextProcessingPipeline(List<ITextProcessor> processors)
+    public TextProcessingPipeline(IEnumerable<ITextProcessor> processors)
     {
-        _processors = processors;
+        _processors = processors.ToList();
     }
 
     public async Task<ProcessedResult> ProcessAsync(string input)
