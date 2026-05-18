@@ -99,7 +99,7 @@
                   <div class="quality-check" [class.pass]="meetsTarget(getDuplicatePrecisionScore(), 0.8)">
                     <mat-icon>{{ meetsTarget(getDuplicatePrecisionScore(), 0.8) ? 'check_circle' : 'error' }}</mat-icon>
                     <div>
-                      <strong>Duplicate precision</strong>
+                      <strong>Clustering precision</strong>
                       <span>{{ getDuplicatePrecisionScore().toFixed(2) }} · Target 0.80</span>
                     </div>
                     <b>{{ qualityStatus(getDuplicatePrecisionScore(), 0.8) }}</b>
